@@ -1,3 +1,6 @@
+//! this is test crate comment
+//! A BIG CREATE COMMENT
+
 
 /// the is an doc example
 ///
@@ -60,9 +63,22 @@ fn get_value_from_vector(to_print:&mut Vec<u32> )->bool{
         true
     }
 }
-
-#[warn(dead_code)]
+/// add two numbers
+///
+/// # Arguments
+///
+/// * `arg1` - some i32
+/// * `arg2` - some i32
+///
+/// # Examples
+///
+/// ```
+/// # use misc_test:add_two_numbers;
+/// assert_eq!(add_two_numbers(10_i32,10_i32),20);
+/// ```
 pub fn add_two_numbers(arg1: i32, arg2: i32) -> i32 {
+    //! adding two numbers
+    //! comment inside
     arg1 + arg2
 }
 

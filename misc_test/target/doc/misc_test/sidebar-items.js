@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":[["add_two_numbers","add two numbers"],["analyze_an_array",""],["get_value_from_vector",""],["main","the is an doc example"],["multiply_array",""],["multiply_by_2",""],["print_array",""]]};

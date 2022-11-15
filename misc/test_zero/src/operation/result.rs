@@ -2,7 +2,7 @@ use rand::Rng;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 static Gserial: AtomicUsize = AtomicUsize::new(0);
-
+#[repr(C)]
 pub struct ValueOperation {
     value: i32,
     serial: usize,

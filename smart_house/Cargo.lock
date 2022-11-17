@@ -3,5 +3,5 @@
 version = 3
 
 [[package]]
-name = "test_00"
+name = "smart_house"
 version = "0.1.0"

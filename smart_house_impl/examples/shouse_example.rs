@@ -25,7 +25,7 @@ const SMART_SOCKET_STR: &str = "smart socket";
 const SMART_TERMOMETER_STR: &str = "smart termometer";
 fn main() {
     let mut s1 = SmartHouse::new(); //create house
-    s1.assign_name("house_one");   // assign a name
+    s1.assign_name("house_one"); // assign a name
     let room1 = "room1".to_string(); //add room1
     let room2 = "room2".to_string(); // add room2
     s1.append_room(&room1).unwrap(); //append room

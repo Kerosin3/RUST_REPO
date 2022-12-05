@@ -25,7 +25,7 @@ const SMART_SOCKET_STR: &str = "smart socket";
 const SMART_TERMOMETER_STR: &str = "smart termometer";
 fn main() {
     let mut s1 = SmartHouse::new(); //create house
-    s1.assign_name("house_one");   // assign a name
+    s1.assign_name("house_one"); // assign a name
     let room1 = "room1".to_string(); //add room1
     let room2 = "room2".to_string(); // add room2
     s1.append_room(&room1).unwrap(); //append room
@@ -43,10 +43,16 @@ fn main() {
     s1.append_a_device(&room2, &dev_smart_termometer).unwrap(); // append termometer to room2
 
     let socket1 = SmartSocket {};
-    let temo1 = SmartThermometer{};
-    let info_provider_1 = BorrowingDeviceInfoProvider{ socket: &socket1, thermo: &temo1 };
+    let temo1 = SmartThermometer {};
+    let info_provider_1 = BorrowingDeviceInfoProvider {
+        socket: &socket1,
+        thermo: &temo1,
+    };
     let report_sockets = s1.create_report(&info_provider_1);
-    println!("sockets and termometers are found in :\n {}", report_sockets.unwrap());
+    println!(
+        "sockets and termometers are found in :\n {}",
+        report_sockets.unwrap()
+    );
     println!("all devices:{}", s1.get_all_devices());
     println!("all rooms in {}", s1.get_all_rooms());
 }

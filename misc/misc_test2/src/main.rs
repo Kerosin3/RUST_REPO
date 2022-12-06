@@ -16,6 +16,7 @@ fn main() {
        Ok(value) =>  println!("value some {}",value),
        Err(e)  => panic!("error {}",e),
     }; 
+
     //---------------------//
     let s1 = String::from("some string to test");
     let (s2,size) = str_calc_leng(s1);

@@ -33,6 +33,8 @@ struct ModifyOptions{
     lower: bool,
     #[structopt(long,short,help="turn into uppercase")]
     upper: bool,
+    #[structopt(long,short,help="reverse a string")]
+    reverse: bool,
     #[structopt(short="pref", long, help = "Adds a prefix to the string")]
     prefix: Option<String>,
     #[structopt(short="suf", long, help = "Adds a suffix to the string")]
@@ -53,12 +55,27 @@ fn modify(input: &String, debug: bool, args: &ModifyOptions) {
     if debug {
         println!("{:#?}", args);
     }
+    if args.lower {
+        println!("lower is {}",input.to_lowercase());
+    }
+    if args.upper{
+        println!("upper is {}",input.to_lowercase());
+    }
 }
 
 fn inspect(input: &String, debug: bool, args: &InspectOptions) {
     println!("Inspect called for {}", input);
     if debug {
         println!("{:#?}", args);
+    }
+    if args.numbers {
+        let numbers:Vec<_> = input.chars().into_iter().map(|x| x.is_digit(10)).collect();
+        println!("numbers in the string are {:?}",numbers);
+        drop(numbers);
+    }
+    if args.length{
+        println!("number of characters in the sctring is {}",input.chars().count());
+
     }
 }
 

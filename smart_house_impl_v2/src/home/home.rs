@@ -26,10 +26,20 @@ pub mod smart_house {
             self.rname.clone()
         }
 
+        /// get devices from the room
+        ///
         fn get_devices(&self) -> Vec<String> {
             self.dev.clone()
         }
 
+        /// append a device to room, should be used after test_if_dev_exists()
+        ///
+        /// # Arguments
+        ///
+        /// * `dev` - &str to add
+        ///
+        /// # Examples
+        ///
         fn append_a_device(&mut self, dev: &str) {
             self.dev.push(dev.to_string());
         }
@@ -47,17 +57,21 @@ pub mod smart_house {
     }
 
     impl SmartHouse {
+        //create new house instance
         pub fn new() -> Self {
             Self {
                 name: Default::default(),
                 rooms: Default::default(),
             }
         }
+        //assign house name
         pub fn assign_name(&mut self, name: &str) {
             self.name = name.to_string();
         }
+
         pub fn append_room(&mut self, room: &str) -> Result<(), Error> {
-            if !self.check_whether_room_exists(room) {
+            if !self.check_whether_room_exists(room).is_some() {
+                // not exists
                 let room = ARoom::new(room); // create new room
                 self.rooms.push(room);
                 Ok(())
@@ -65,11 +79,15 @@ pub mod smart_house {
                 Err(Error::from(ErrorKind::AlreadyExists))
             }
         }
-        fn check_whether_room_exists(&self, room: &str) -> bool {
-            self.rooms.iter().any(|x| x.rname == room)
+        fn check_whether_room_exists(&self, room: &str) -> Option<bool> {
+            if self.rooms.iter().any(|x| x.rname == room) {
+                Some(true)
+            } else {
+                None
+            }
         }
         pub fn append_a_device(&mut self, room_name: &str, dev: &str) -> Result<(), Error> {
-            if !self.check_whether_room_exists(room_name) {
+            if self.check_whether_room_exists(room_name).is_none() {
                 // not exists
                 Err(Error::from(ErrorKind::NotFound))
             } else {
@@ -89,7 +107,12 @@ pub mod smart_house {
                 }
             }
         }
-        // get rooms list
+        /// get all room names in the house
+        ///
+        /// # Examples
+        ///
+        /// ```
+        /// ```
         fn get_rooms(&self) -> Vec<String> {
             let mut room_list: Vec<String> = vec![];
             for i in self.rooms.iter() {
@@ -97,12 +120,36 @@ pub mod smart_house {
             }
             room_list
         }
+        /// get room object
+        ///
+        /// # Arguments
+        ///
+        /// * `room` - name of a room, shoul be used to process vec after get_rooms()
+        ///
+        /// # Examples
+        ///
+        /// ```
+        /// ```
         fn get_room(&self, room: &str) -> &ARoom {
             let room_pos = self.rooms.iter().position(|x| x.rname == room).unwrap(); //get room position
             self.rooms.get(room_pos).unwrap()
         }
+        /// returns a vec of all devices in a room
+        ///
+        /// # Arguments
+        ///
+        /// * `room` - room name
+        ///
+        /// # Errors
+        ///
+        /// not found in case romm has not been found
+        ///
+        /// # Examples
+        ///
+        /// ```
+        /// ```
         fn devices(&self, room: &str) -> Result<Vec<String>, Error> {
-            if !self.check_whether_room_exists(room) {
+            if self.check_whether_room_exists(room).is_none() {
                 // no such room
                 Err(Error::from(ErrorKind::NotFound))
             } else {
@@ -111,7 +158,13 @@ pub mod smart_house {
                 Ok(self.rooms.get(room_pos).unwrap().dev.clone()) //return copy of devices
             }
         }
-        //get all rooms
+
+        /// format to output all rooms in the house
+        ///
+        /// # Examples
+        ///
+        /// ```
+        /// ```
         pub fn get_all_rooms(&self) -> String {
             let mut string_out = String::new();
             fmt::write(
@@ -125,7 +178,13 @@ pub mod smart_house {
             }
             string_out
         }
-        //get all devices
+
+        /// format to output all devices in the house
+        ///
+        /// # Examples
+        ///
+        /// ```
+        /// ```
         pub fn get_all_devices(&self) -> String {
             let mut string_out = String::new();
             let room_list = self.rooms.iter();
@@ -166,9 +225,12 @@ pub mod smart_house {
                     self.name, &out_devices_info
                 ))
             } else {
-                Ok(format!(
-                    "Report for house {}: no such device(s) [{:?}] has been found",
-                    self.name, devices
+                Err(Error::new(
+                    ErrorKind::Other,
+                    format!(
+                        "[Error] Report for house {}: no such device(s) [{:?}] has been found",
+                        self.name, devices
+                    ),
                 ))
             }
         }
@@ -316,7 +378,7 @@ pub mod smart_house {
             let v1 = "room1".to_string();
             let v2 = "room2".to_string();
             s1.append_room(&v1).unwrap();
-            assert_eq!(s1.check_whether_room_exists(&v1), true);
+            assert_eq!(s1.check_whether_room_exists(&v1).is_some(), true);
         }
 
         #[test]
@@ -326,7 +388,7 @@ pub mod smart_house {
             let v1 = "room1".to_string();
             let v2 = "room2".to_string();
             s1.append_room(&v1).unwrap();
-            assert_eq!(s1.check_whether_room_exists(&v1), false);
+            assert_eq!(s1.check_whether_room_exists(&v1).is_some(), false);
         }
 
         #[test]

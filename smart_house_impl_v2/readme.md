@@ -8,3 +8,5 @@
 * use `cargo test` to run unit tests
 * use `cargo test --test '*'` to run all integration test
 * use `cargo test --test %integration test filename %` to run one integration test
+* pass `-- --nocapture` to a test to enable println output
+

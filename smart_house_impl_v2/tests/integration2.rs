@@ -9,5 +9,5 @@ fn integration_test_2_1() {
     let room2 = "room2".to_string();
     let devX = "deviceX".to_string(); //device
     assert_eq!(house.append_a_device(&room1, &devX).is_ok(), true); // OK
-    // got error is ok
+                                                                    // got error is ok
 }

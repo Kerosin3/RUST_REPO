@@ -2,6 +2,7 @@
 pub mod smart_house {
     use std::{rc::Rc, any::Any};
     use std::cell::RefCell;
+    use std::cell::RefMut;
 
     #[derive(thiserror::Error, Debug, Clone)]
     pub enum ErrorC {
@@ -62,10 +63,11 @@ pub mod smart_house {
                 Err(ErrorC::RoomExists(room.get_name().to_string()))
             }
         }
-        pub fn append_dev_to_a_room(&mut self, a_room: &Rc<dyn Roomz>) -> Result<(), ErrorC> {
+        pub fn append_dev_to_a_room(&mut self, a_room: &Rc<dyn Roomz>,a_device: &Rc<dyn Device>) -> Result<(), ErrorC> {
             if let Some(r_pos) = self.test_whether_room_exits(a_room) {
-                let a = self.rooms.iter().nth(r_pos).unwrap().get_name();
-                println!("-------------->name is {}",a);
+                //let mut dev_list = (self.rooms.iter().nth(r_pos).unwrap()).get_room_store_to_append().push(a_device.clone());
+                let mut dev_list = (self.rooms.iter().nth(r_pos).unwrap());
+                println!("-------------->name is {}","hah");
                 Ok(())
             } else {
                 Err(ErrorC::RoomNotExists(a_room.get_name().to_string()))
@@ -74,28 +76,30 @@ pub mod smart_house {
     }
     struct Room {
         name: String,
-        //devices: Rc<Vec<dyn Device>>,
-        devices: Vec<Rc<dyn Device>>,
+        //devices: Rc<RefCell<Vec<Box<dyn Device>>>>,
+        devices:  Rc<RefCell<Vec<Rc<Box<dyn Device>>>>>,
+        //devices: Vec<Rc<dyn Device>>,
     }
+
     impl Room {
         pub fn new_room(name: &str) -> Rc<dyn Roomz> {
             Rc::new(Room {
                 name: name.to_owned(),
-                devices: vec![],
+                devices: Rc::new(RefCell::new(vec![])),
             })
         }
-        pub fn add_a_device(&mut self,a_dev: &Rc<dyn Device>) -> Result<(),ErrorC>{
+        pub fn add_a_device(&mut self,a_dev: Rc<Box<dyn Device>>) -> Result<(),ErrorC>{
             if self.test_whether_device_exits_int_the_room(a_dev).is_none() {
-                self.devices.push(Rc::clone(a_dev)); // Rc copy
+                self.devices.get_mut().push(Rc::clone(&a_dev));
                 Ok(())
             } else {
                 Err(ErrorC::RoomExists(a_dev.get_dev_name().to_string()))
             }
 
         }
-        fn test_whether_device_exits_int_the_room(&self,a_dev: &Rc<dyn Device>) -> Option<usize>{
-            if self.devices.iter().any(|r| r.get_dev_name() == a_dev.get_dev_name()) {
-                self.devices
+        fn test_whether_device_exits_int_the_room(&self,a_dev: Rc<Box<dyn Device>>) -> Option<usize>{
+            if self.devices.borrow().iter().any(|r| r.get_dev_name() == a_dev.get_dev_name()) {
+                self.devices.borrow()
                     .iter()
                     .position(|x| x.get_dev_name() == a_dev.get_dev_name()) // some with pos
             } else {
@@ -126,12 +130,20 @@ pub mod smart_house {
         fn get_state(&self) {
             unimplemented!();
         }
+        //fn get_room_store_to_append(&mut self) -> RefCell<Vec<Rc<dyn Device>>>;
+        fn get_room_store_to_append(&mut self) -> RefMut< Vec<Rc<Box<dyn Device>>>>;
         //fn add_device(&mut self,a_dev: &Rc<dyn Device> ) -> Result<(),ErrorC>;
     }
     impl Roomz for Room {
         fn get_name(&self) -> &str {
             &self.name
         }
+        fn get_room_store_to_append(&mut self) -> RefMut<Vec<Rc<Box<dyn Device>>>> {
+            self.devices.borrow_mut()
+        }
+        //fn get_room_store_to_append(&self) -> &Vec<Rc<dyn Device>>{
+        //    self.devices.as_ref()
+        //}
     }
 
     #[cfg(test)]
@@ -159,7 +171,7 @@ pub mod smart_house {
             let some_room = Room::new_room("test_room1");
             assert!(sh.append_room(&some_room).is_ok());
             let some_dev = Dev1(String::from("device1"));
-            assert!(sh.append_dev_to_a_room(&some_room).is_ok());
+         //   assert!(sh.append_dev_to_a_room(&some_room).is_ok());
 
         }
     }

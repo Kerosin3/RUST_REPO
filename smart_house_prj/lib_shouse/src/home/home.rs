@@ -16,13 +16,11 @@ pub mod smart_house {
         RoomExists(String),
         #[error("Such room is not exists {0}")]
         RoomNotExists(String),
-
     }
 
     pub fn run_me() {
         println!("run me!");
     }
-
 
     struct Shouse {
         rooms: Vec<Rc<dyn Roomz>>,
@@ -41,8 +39,10 @@ pub mod smart_house {
         }
 
         fn test_whether_room_exits(&self, a_room: &Rc<dyn Roomz>) -> Option<usize> {
-            if self.rooms.iter().any(|r| r.get_name() == a_room.get_name()){
-                self.rooms.iter().position(|x| x.get_name() == a_room.get_name()) // some with pos
+            if self.rooms.iter().any(|r| r.get_name() == a_room.get_name()) {
+                self.rooms
+                    .iter()
+                    .position(|x| x.get_name() == a_room.get_name()) // some with pos
             } else {
                 None
             }
@@ -54,16 +54,16 @@ pub mod smart_house {
             // и где
             // будет
             // хранится?
-            if self.test_whether_room_exits(room).is_none(){
+            if self.test_whether_room_exits(room).is_none() {
                 self.rooms.push(Rc::clone(room)); // Rc copy
                 Ok(())
             } else {
                 Err(ErrorC::RoomExists(room.get_name().to_string()))
             }
         }
-        pub fn append_dev_to_a_room(&mut self,a_room: &Rc<dyn Roomz>) -> Result<(),ErrorC>{
-            if let Some(r_pos) =  self.test_whether_room_exits(a_room) {
-                println!("room position {}",r_pos);
+        pub fn append_dev_to_a_room(&mut self, a_room: &Rc<dyn Roomz>) -> Result<(), ErrorC> {
+            if let Some(r_pos) = self.test_whether_room_exits(a_room) {
+                println!("room position {}", r_pos);
                 Ok(())
             } else {
                 Err(ErrorC::RoomNotExists(a_room.get_name().to_string()))
@@ -73,18 +73,17 @@ pub mod smart_house {
     #[derive(Clone)]
     struct Room {
         name: String,
-//        devices: Vec<Rc<dyn Device>>,
-
+        //        devices: Vec<Rc<dyn Device>>,
     }
     impl Room {
         fn new_room(name: &str) -> Rc<dyn Roomz> {
             Rc::new(Room {
                 name: name.to_owned(),
-  //              devices: vec![Room::new_room("default_room")],
+                //              devices: vec![Room::new_room("default_room")],
             })
         }
     }
-    
+
     struct Dev1(String);
 
     impl Device for Dev1 {
@@ -95,7 +94,7 @@ pub mod smart_house {
 
     trait Device {
         fn get_dev_name(&self) -> &str;
-//        fn get_dev_info(&self) -> &str;
+        //        fn get_dev_info(&self) -> &str;
     }
 
     trait Roomz {
@@ -103,7 +102,7 @@ pub mod smart_house {
         fn get_devices(&self) -> Vec<&str> {
             unimplemented!();
         }
-        fn get_state(&self){
+        fn get_state(&self) {
             unimplemented!();
         }
         //fn add_device(&mut self,a_dev: &Rc<dyn Device> ) -> Result<(),ErrorC>;
@@ -131,7 +130,7 @@ pub mod smart_house {
             let some_room = Room::new_room("test_room1");
             assert!(sh.append_room(&some_room).is_ok());
             assert!(sh.test_whether_room_exits(&some_room).is_some()); // true when exists
-            //let dev1 = Dev1(String::from("device1"));
+                                                                       //let dev1 = Dev1(String::from("device1"));
         }
         #[test]
         fn test_add_device() {
@@ -140,6 +139,5 @@ pub mod smart_house {
             assert!(sh.append_room(&some_room).is_ok());
             sh.append_dev_to_a_room(&some_room);
         }
-
     }
 }

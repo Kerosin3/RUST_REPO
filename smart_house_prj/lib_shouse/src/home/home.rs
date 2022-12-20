@@ -14,6 +14,8 @@ pub mod smart_house {
         InvalidArgument(String),
         #[error("Such room is already exists {0}")]
         RoomExists(String),
+        #[error("Such room is not exists {0}")]
+        RoomNotExists(String),
 
     }
 
@@ -21,12 +23,6 @@ pub mod smart_house {
         println!("run me!");
     }
 
-    struct Stol {}
-    struct Shulp {}
-
-    trait Device {
-        fn get_info(&self) -> Result<String, ErrorC>;
-    }
 
     struct Shouse {
         rooms: Vec<Rc<dyn Roomz>>,
@@ -35,43 +31,71 @@ pub mod smart_house {
 
     impl Shouse {
         /// create default smart house with default room
-        /// 
-        /// # Examples 
+        ///
+        /// # Examples
         ///  
-        fn create_new_home() -> Self {
-            Shouse {  
+        pub fn create_new_home() -> Self {
+            Shouse {
                 rooms: vec![Room::new_room("default_room")],
-            }  
-        }  
+            }
+        }
 
+        fn test_whether_room_exits(&self, a_room: &Rc<dyn Roomz>) -> Option<usize> {
+            if self.rooms.iter().any(|r| r.get_name() == a_room.get_name()){
+                self.rooms.iter().position(|x| x.get_name() == a_room.get_name()) // some with pos
+            } else {
+                None
+            }
+        }
 
-        fn test_whether_room_exits(&self,a_room: Rc<dyn Roomz>) -> bool{
-            self.rooms.iter().any(|r| r.get_name() == a_room.get_name())
-        } 
-
-       pub fn append_room(&mut self, room: Rc<dyn Roomz>) -> Result<(), ErrorC> { // куда
-                                                                                          // девается
-                                                                                          // и где
-                                                                                          // будет
-                                                                                          // хранится?
-            if ! self.rooms.iter().any(|r| r.get_name() == room.get_name()) {
-                self.rooms.push(Rc::clone(&room)); // move from stack to heap
+        pub fn append_room(&mut self, room: &Rc<dyn Roomz>) -> Result<(), ErrorC> {
+            // куда
+            // девается
+            // и где
+            // будет
+            // хранится?
+            if self.test_whether_room_exits(room).is_none(){
+                self.rooms.push(Rc::clone(room)); // Rc copy
                 Ok(())
-            } else {  
+            } else {
                 Err(ErrorC::RoomExists(room.get_name().to_string()))
-            }    
-        }    
-    }    
+            }
+        }
+        pub fn append_dev_to_a_room(&mut self,a_room: &Rc<dyn Roomz>) -> Result<(),ErrorC>{
+            if let Some(r_pos) =  self.test_whether_room_exits(a_room) {
+                println!("room position {}",r_pos);
+                Ok(())
+            } else {
+                Err(ErrorC::RoomNotExists(a_room.get_name().to_string()))
+            }
+        }
+    }
     #[derive(Clone)]
-    struct Room {    
-        name: String,  
-    }    
-    impl Room {   
-        fn new_room(name: &str) -> Rc<Room> {
-            Rc::new(Room{ 
+    struct Room {
+        name: String,
+//        devices: Vec<Rc<dyn Device>>,
+
+    }
+    impl Room {
+        fn new_room(name: &str) -> Rc<dyn Roomz> {
+            Rc::new(Room {
                 name: name.to_owned(),
+  //              devices: vec![Room::new_room("default_room")],
             })
         }
+    }
+    
+    struct Dev1(String);
+
+    impl Device for Dev1 {
+        fn get_dev_name(&self) -> &str {
+            self.0.as_str()
+        }
+    }
+
+    trait Device {
+        fn get_dev_name(&self) -> &str;
+//        fn get_dev_info(&self) -> &str;
     }
 
     trait Roomz {
@@ -79,8 +103,11 @@ pub mod smart_house {
         fn get_devices(&self) -> Vec<&str> {
             unimplemented!();
         }
+        fn get_state(&self){
+            unimplemented!();
+        }
+        //fn add_device(&mut self,a_dev: &Rc<dyn Device> ) -> Result<(),ErrorC>;
     }
-
     impl Roomz for Room {
         fn get_name(&self) -> &str {
             &self.name
@@ -94,17 +121,25 @@ pub mod smart_house {
         #[should_panic]
         fn test_existing_append() {
             let mut sh = Shouse::create_new_home();
-            sh.append_room(Room::new_room("room1")).unwrap();
-            sh.append_room(Room::new_room("room1")).unwrap();// should panic
+            let some_room = Room::new_room("test_room1");
+            assert!(sh.append_room(&some_room).is_ok());
+            assert!(sh.append_room(&some_room).is_ok()); // fail
         }
         #[test]
         fn test_room_testing() {
             let mut sh = Shouse::create_new_home();
             let some_room = Room::new_room("test_room1");
-            sh.append_room(some_room);
-            sh.test_whether_room_exits(some_room);
+            assert!(sh.append_room(&some_room).is_ok());
+            assert!(sh.test_whether_room_exits(&some_room).is_some()); // true when exists
+            //let dev1 = Dev1(String::from("device1"));
         }
-
+        #[test]
+        fn test_add_device() {
+            let mut sh = Shouse::create_new_home();
+            let some_room = Room::new_room("test_room1");
+            assert!(sh.append_room(&some_room).is_ok());
+            sh.append_dev_to_a_room(&some_room);
+        }
 
     }
 }

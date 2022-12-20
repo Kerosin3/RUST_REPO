@@ -1,6 +1,7 @@
 #![feature(generic_associated_types)]
 pub mod smart_house {
-    use std::rc::Rc;
+    use std::{rc::Rc, any::Any};
+    use std::cell::RefCell;
 
     #[derive(thiserror::Error, Debug, Clone)]
     pub enum ErrorC {
@@ -34,7 +35,7 @@ pub mod smart_house {
         ///  
         pub fn create_new_home() -> Self {
             Shouse {
-                rooms: vec![Room::new_room("default_room")],
+                rooms: vec![] // empty vector
             }
         }
 
@@ -63,24 +64,44 @@ pub mod smart_house {
         }
         pub fn append_dev_to_a_room(&mut self, a_room: &Rc<dyn Roomz>) -> Result<(), ErrorC> {
             if let Some(r_pos) = self.test_whether_room_exits(a_room) {
-                println!("room position {}", r_pos);
+                let a = self.rooms.iter().nth(r_pos).unwrap().get_name();
+                println!("-------------->name is {}",a);
                 Ok(())
             } else {
                 Err(ErrorC::RoomNotExists(a_room.get_name().to_string()))
             }
         }
     }
-    #[derive(Clone)]
     struct Room {
         name: String,
-        //        devices: Vec<Rc<dyn Device>>,
+        //devices: Rc<Vec<dyn Device>>,
+        devices: Vec<Rc<dyn Device>>,
     }
     impl Room {
-        fn new_room(name: &str) -> Rc<dyn Roomz> {
+        pub fn new_room(name: &str) -> Rc<dyn Roomz> {
             Rc::new(Room {
                 name: name.to_owned(),
-                //              devices: vec![Room::new_room("default_room")],
+                devices: vec![],
             })
+        }
+        pub fn add_a_device(&mut self,a_dev: &Rc<dyn Device>) -> Result<(),ErrorC>{
+            if self.test_whether_device_exits_int_the_room(a_dev).is_none() {
+                self.devices.push(Rc::clone(a_dev)); // Rc copy
+                Ok(())
+            } else {
+                Err(ErrorC::RoomExists(a_dev.get_dev_name().to_string()))
+            }
+
+        }
+        fn test_whether_device_exits_int_the_room(&self,a_dev: &Rc<dyn Device>) -> Option<usize>{
+            if self.devices.iter().any(|r| r.get_dev_name() == a_dev.get_dev_name()) {
+                self.devices
+                    .iter()
+                    .position(|x| x.get_dev_name() == a_dev.get_dev_name()) // some with pos
+            } else {
+                None
+            }
+  
         }
     }
 
@@ -137,7 +158,9 @@ pub mod smart_house {
             let mut sh = Shouse::create_new_home();
             let some_room = Room::new_room("test_room1");
             assert!(sh.append_room(&some_room).is_ok());
-            sh.append_dev_to_a_room(&some_room);
+            let some_dev = Dev1(String::from("device1"));
+            assert!(sh.append_dev_to_a_room(&some_room).is_ok());
+
         }
     }
 }

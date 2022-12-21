@@ -1,5 +1,6 @@
+# Modified, dynamic version of smart house
+* use `cargo test -p lib_shouse testing_house` to run tests on the lib
 ## Usage
-
 * use `cargo run -p %package%` to run a package
 * use `cargo run --example %example_file_name%` to run an example
 * use `cargo test` to run unit tests

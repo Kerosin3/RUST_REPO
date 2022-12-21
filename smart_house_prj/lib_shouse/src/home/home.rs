@@ -1,8 +1,8 @@
-#![feature(generic_associated_types)]
+#[allow(unused_imports)]
+#[allow(unused_variables)]
+#[allow(dead_code)]
 pub mod smart_house {
     use std::cell::RefCell;
-    use std::cell::RefMut;
-    use std::ops::Deref;
     use std::{any::Any, rc::Rc};
 
     #[derive(thiserror::Error, Debug, Clone)]
@@ -54,23 +54,18 @@ pub mod smart_house {
         }
 
         pub fn append_room(&mut self, room: &Rc<dyn Roomz>) -> Result<(), ErrorC> {
-            // куда
-            // девается
-            // и где
-            // будет
-            // хранится?
             if self.test_whether_room_exits(room).is_none() {
-                self.rooms.push(Rc::clone(room)); // Rc copy
+                self.rooms.push(Rc::clone(room)); // copy pointer
                 Ok(())
             } else {
                 Err(ErrorC::RoomExists(room.get_name().to_string()))
             }
         }
 
-        pub fn test_whether_dev_in_room_exists(
+        fn test_whether_dev_in_room_exists(
             &self,
             a_room: &Rc<dyn Roomz>,
-            a_dev: &Rc<dyn Device>,
+            a_dev: &Rc<dyn Device<Output = Dev1>>,
         ) -> Option<usize> {
             if let Some(r_pos) = self.test_whether_room_exits(a_room) {
                 // room exists
@@ -93,19 +88,22 @@ pub mod smart_house {
                 None
             }
         }
-        pub fn print_dev_in_rooms(&self, a_room: &Rc<dyn Roomz>) {
+        fn print_dev_in_rooms(&self, a_room: &Rc<dyn Roomz>) {
             for i in self.rooms.get(0).unwrap().get_devices_ref().borrow().iter() {
                 //       println!("device:{}", i.deref().get_dev_name()); dgb?
             }
         }
+        pub fn create_report() -> Result<(),ErrorC>{
+            unimplemented!();
+        }
         pub fn append_dev_to_a_room(
             &mut self,
             a_room: &Rc<dyn Roomz>,
-            a_device: &Rc<dyn Device>,
+            a_device: &Rc<dyn Device<Output = Dev1>>,
         ) -> Result<(), ErrorC> {
             if let Some(r_pos) = self.test_whether_room_exits(a_room) {
                 // test is room exists
-                if let Some(_) = self.test_whether_dev_in_room_exists(a_room, a_device) {
+                if self.test_whether_dev_in_room_exists(a_room, a_device).is_some() {
                     // test if
                     // dev is
                     // already
@@ -114,17 +112,16 @@ pub mod smart_house {
                 } else {
                     // not exists in the room
                     self.rooms
-                        .iter()
-                        .nth(r_pos)
+                        .get(r_pos)
                         .unwrap()
                         .get_devices_ref()
                         .borrow_mut()
                         .push(Rc::clone(a_device)); // PUSH!!!
-                    println!(
+                  /*  println!(
                         "-------------->APPENDED DEV:{} TO ROOM {} ",
                         a_device.get_dev_name(),
                         a_room.get_name()
-                    );
+                    );*/
                     Ok(())
                 }
             } else {
@@ -134,8 +131,7 @@ pub mod smart_house {
     }
     struct Room {
         name: String,
-        //devices: Rc<RefCell<Vec<Rc<Box<dyn Device>>>>>,
-        devices: Rc<RefCell<Vec<Rc<dyn Device>>>>,
+        devices: Rc<RefCell<Vec<Rc<dyn Device<Output = Dev1>>>>>,
     }
 
     impl Room {
@@ -147,14 +143,14 @@ pub mod smart_house {
         }
     }
 
-    struct Dev1 {
+    pub struct Dev1 {
         name: String,
         state: bool,
         serial: usize,
     }
 
     impl Dev1 {
-        fn new(name: &str) -> Rc<dyn Device> {
+        fn new(name: &str) -> Rc<dyn Device<Output = Self>> {
             Rc::new(Self {
                 name: (name.to_owned()),
                 state: (true),
@@ -164,6 +160,7 @@ pub mod smart_house {
     }
 
     impl Device for Dev1 {
+        type Output = Self;
         fn get_dev_name(&self) -> &str {
             self.name.as_str()
         }
@@ -172,49 +169,45 @@ pub mod smart_house {
         }
     }
 
-    trait Device {
+    pub trait Device {
+        type Output = Dev1;
         fn get_dev_name(&self) -> &str;
         fn get_dev_state(&self) -> bool;
-        //        fn get_serial(&self) -> usize;
-        //        fn get_dev_info(&self) -> &str;
     }
 
     trait Roomz {
         fn get_name(&self) -> &str;
-        fn get_devices_ref(&self) -> Rc<RefCell<Vec<Rc<dyn Device>>>>;
+        fn get_devices_ref(&self) -> Rc<RefCell<Vec<Rc<dyn Device<Output = Dev1>>>>>;
         fn get_devices(&self) -> Vec<&str> {
             unimplemented!();
         }
         fn get_state(&self) {
             unimplemented!();
         }
-        //fn get_room_store_to_append(&mut self) -> RefCell<Vec<Rc<dyn Device>>>;
-        //fn get_room_store_to_append(&mut self) -> RefMut<Vec<Rc<Box<dyn Device>>>>;
-        //fn add_device(&mut self,a_dev: &Rc<dyn Device> ) -> Result<(),ErrorC>;
     }
     impl Roomz for Room {
         fn get_name(&self) -> &str {
             &self.name
         }
 
-        fn get_devices_ref(&self) -> Rc<RefCell<Vec<Rc<dyn Device>>>> {
+        fn get_devices_ref(&self) -> Rc<RefCell<Vec<Rc<dyn Device<Output = Dev1>>>>> {
             Rc::clone(&self.devices)
         }
     }
 
     #[cfg(test)]
-    mod test_test {
+    mod testing_house{
         use super::*;
         #[test]
         #[should_panic]
-        fn test_existing_append() {
+        fn existing_append() {
             let mut sh = Shouse::create_new_home();
             let some_room = Room::new_room("test_room1");
             assert!(sh.append_room(&some_room).is_ok());
             assert!(sh.append_room(&some_room).is_ok()); // fail
         }
         #[test]
-        fn test_room_testing() {
+        fn room_testing_exists_ok() {
             let mut sh = Shouse::create_new_home();
             let some_room = Room::new_room("test_room1");
             assert!(sh.append_room(&some_room).is_ok());
@@ -223,7 +216,7 @@ pub mod smart_house {
         }
         #[test]
         #[should_panic]
-        fn test_add_device_to_n_exists_room() {
+        fn add_device_to_n_exists_room() {
             let mut sh = Shouse::create_new_home();
             let _some_room = Room::new_room("test_room1");
             let some_room2 = Room::new_room("test_room1");
@@ -231,7 +224,7 @@ pub mod smart_house {
             assert!(sh.append_dev_to_a_room(&some_room2, &dev).is_ok());
         }
         #[test]
-        fn test_add_device() {
+        fn add_multiple_device() {
             let mut sh = Shouse::create_new_home();
             let some_room = Room::new_room("test_room1");
             assert!(sh.append_room(&some_room).is_ok());
@@ -241,7 +234,7 @@ pub mod smart_house {
             assert!(sh.append_dev_to_a_room(&some_room, &dev1).is_ok());
         }
         #[test]
-        fn test_test_dev_in_room() {
+        fn test_whether_dev_in_room() {
             let mut sh = Shouse::create_new_home();
             let some_room = Room::new_room("test_room1");
             assert!(sh.append_room(&some_room).is_ok());
@@ -256,12 +249,12 @@ pub mod smart_house {
                 .is_some());
         }
         #[test]
-        fn test_test_dev_in_room_n_exists() {
+        fn test_whether_dev_dev_n_exists() {
             let mut sh = Shouse::create_new_home();
             let some_room = Room::new_room("test_room1");
             assert!(sh.append_room(&some_room).is_ok());
-            let dev = Dev1::new("Device1");
-            let dev1 = Dev1::new("Device2");
+            let _dev = Dev1::new("Device1");
+            let _dev1 = Dev1::new("Device2");
             let dev2 = Dev1::new("Device3");
             assert!(sh
                 .test_whether_dev_in_room_exists(&some_room, &dev2)
@@ -284,9 +277,27 @@ pub mod smart_house {
             assert!(sh.append_room(&some_room).is_ok());
             let dev = Dev1::new("Device1");
             let dev1 = Dev1::new("Device2");
+            let dev2 = Dev1::new("Device3");
             assert!(sh.append_dev_to_a_room(&some_room, &dev).is_ok());
             assert!(sh.append_dev_to_a_room(&some_room, &dev1).is_ok());
-            sh.print_dev_in_rooms(&some_room);
+            assert!(sh.test_whether_dev_in_room_exists(&some_room,&dev).is_some());
+            assert!(sh.test_whether_dev_in_room_exists(&some_room,&dev1).is_some());
+            assert!(sh.test_whether_dev_in_room_exists(&some_room,&dev2).is_none());
         }
+        #[test]
+        fn test_multi_append() {
+            let mut sh = Shouse::create_new_home();
+            let some_room1 = Room::new_room("test_room1");
+            let some_room2 = Room::new_room("test_room2");
+            assert!(sh.append_room(&some_room1).is_ok());
+            assert!(sh.append_room(&some_room2).is_ok());
+            let dev = Dev1::new("Device1");
+            let dev1 = Dev1::new("Device2");
+            assert!(sh.append_dev_to_a_room(&some_room1, &dev).is_ok());
+            assert!(sh.append_dev_to_a_room(&some_room1, &dev1).is_ok());
+            assert!(sh.append_dev_to_a_room(&some_room2, &dev).is_ok());
+            assert!(sh.append_dev_to_a_room(&some_room2, &dev1).is_ok());
+        }
+
     }
 }

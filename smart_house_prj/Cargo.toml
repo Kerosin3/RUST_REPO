@@ -1,2 +1,2 @@
 [workspace]
-members = ["lib_shouse","shouse_b"]
+members = ["lib_shouse","shouse_b","xtask"]

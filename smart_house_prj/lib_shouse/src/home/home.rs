@@ -235,7 +235,7 @@ pub mod smart_house {
                 serial: (1),
             })
         }
-        fn change_internals(&mut self,serial: usize,new_state:bool) {
+        fn change_internals(&mut self, serial: usize, new_state: bool) {
             self.serial = serial;
             self.state = new_state;
         }
@@ -249,7 +249,7 @@ pub mod smart_house {
         fn get_dev_state(&self) -> bool {
             true
         }
-        fn change_device_properties(&mut self,state:bool){
+        fn change_device_properties(&mut self, state: bool) {
             self.state = state;
         }
     }
@@ -258,7 +258,7 @@ pub mod smart_house {
         type Output = GenericDevice;
         fn get_dev_name(&self) -> &str;
         fn get_dev_state(&self) -> bool;
-        fn change_device_properties(&mut self,state:bool);
+        fn change_device_properties(&mut self, state: bool);
     }
 
     pub trait Roomz {
@@ -400,8 +400,8 @@ pub mod smart_house {
             assert!(sh.append_dev_to_a_room(&some_room2, &dev).is_ok());
             assert!(sh.append_dev_to_a_room(&some_room2, &dev1).is_ok());
             assert!(sh.create_report(&some_room2, &dev1).is_ok());
-            let rep = sh.create_report(&some_room2, &dev1) ;
-            println!("---------------------->{}",rep.unwrap());
+            let rep = sh.create_report(&some_room2, &dev1);
+            println!("---------------------->{}", rep.unwrap());
         }
 
         #[test]
@@ -420,20 +420,19 @@ pub mod smart_house {
             let some_room1 = Room::new_room("test_room1");
             assert!(sh.append_room(&some_room1).is_ok());
             let mut dev = GenericDevice::new("Device1"); // не понимаю, кто владеет девайсом, как
-                                                     // изменить его поля? 
-                                                     // т.к я везде копирую ссылки, идея была
-                                                     // что бы можно было условно поменять
-                                                     // dev.change_internals() и таким образом как
-                                                     // бы управлять девайсом, далее уже это
-                                                     // состояние будет репортится, при вызове
-                                                     // репорта
-            //let b = dev.as_ref().borrow_mut().change_device_properties(false);
+                                                         // изменить его поля?
+                                                         // т.к я везде копирую ссылки, идея была
+                                                         // что бы можно было условно поменять
+                                                         // dev.change_internals() и таким образом как
+                                                         // бы управлять девайсом, далее уже это
+                                                         // состояние будет репортится, при вызове
+                                                         // репорта
+                                                         //let b = dev.as_ref().borrow_mut().change_device_properties(false);
             let b = Rc::get_mut(&mut dev).unwrap().get_dev_name();
-            println!("device name is {}",b);
+            println!("device name is {}", b);
             assert!(sh.append_dev_to_a_room(&some_room1, &dev).is_ok());
 
             assert!(sh.create_report(&some_room1, &dev).is_ok());
         }
-
     }
 }

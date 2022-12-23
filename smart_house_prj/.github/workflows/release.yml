@@ -14,10 +14,10 @@ on:
 
 # 2. fill these in and you're done.
 env:
-  BIN_NAME: starter_project
-  PROJECT_NAME: starter_project
-  REPO_NAME: jondot/starter_project
-  BREW_TAP: jondot/homebrew-tap
+  BIN_NAME: smart_house_prj 
+  PROJECT_NAME: smart_house_prj
+  REPO_NAME: ${{ github.event.repository.name }}
+  BREW_TAP: Kerosin3/homebrew-tap
 
 jobs:
   dist:
@@ -30,7 +30,7 @@ jobs:
         include:
         - build: x86_64-linux
           os: ubuntu-20.04
-          rust: stable
+          rust: nightly
           target: x86_64-unknown-linux-gnu
           cross: false
 
@@ -42,17 +42,17 @@ jobs:
 
         - build: x86_64-macos
           os: macos-latest
-          rust: stable
+          rust: nightly
           target: x86_64-apple-darwin
           cross: false
         - build: x86_64-windows
           os: windows-2019
-          rust: stable
+          rust: nightly
           target: x86_64-pc-windows-msvc
           cross: false
         - build: aarch64-macos
           os: macos-latest
-          rust: stable
+          rust: nightly
           target: aarch64-apple-darwin
         # - build: aarch64-macos
         #   os: macos-latest

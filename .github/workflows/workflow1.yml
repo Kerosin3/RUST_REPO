@@ -2,9 +2,10 @@ on: [push, pull_request]
 
 name: Continuous integration workflow1
 
-  #installed_soft: ['git','vim','mc','tcpdump','net-tools','nmap','nftables','bash-completion','most','zsh','nnn','mtr','liburing','protobuf-c','libsodium','gnu-netcat']
 env: 
   package_to_test: '--manifest-path tests/test1/Cargo.toml'
+  toolchain: 'nightly' 
+#  toolchain: 'stable'
 jobs:
   check:
     name: Check
@@ -34,7 +35,8 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --manifest-path tests/test1/Cargo.toml
+          #args: --manifest-path tests/test1/Cargo.toml
+          args: ${{ env.package_to_test }}
 
   fmt:
     name: Rustfmt
@@ -50,8 +52,8 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: fmt
-            #          args: --all -- --check
-          args: --manifest-path tests/test1/Cargo.toml --all -- --check
+            #args: --manifest-path tests/test1/Cargo.toml --all -- --check
+          args: ${{ env.package_to_test }} --all --check
 
   clippy:
     name: Clippy
@@ -69,4 +71,5 @@ jobs:
         with:
           command: clippy
             #args: -- -D warnings
-          args: --manifest-path tests/test1/Cargo.toml -- -D warnings
+            #args: --manifest-path tests/test1/Cargo.toml -- -D warnings
+          args: ${{ env.package_to_test }} -- -D warnings

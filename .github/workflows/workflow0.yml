@@ -10,7 +10,7 @@ jobs:
       - uses: actions/checkout@v2
       - name: Get author name
         id: author
-        run: echo "{author}={$(git show -s --format=%an)}" >> $GITHUB_OUTPUT
+        run: echo "author=$(git show -s --format=%an)" >> $GITHUB_OUTPUT
           #run: echo "{name}={value} >>GITHUB_OUTPUT::$(git show -s --format=%an)"
        # run: echo "::set-output name=author::$(git show -s --format=%an)"
       - name: Print author name

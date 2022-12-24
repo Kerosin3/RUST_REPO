@@ -1,4 +1,4 @@
-name: Inputs and outputs
+name: Example workflow
 
 on:
   push:

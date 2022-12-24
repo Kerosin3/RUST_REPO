@@ -1,10 +1,10 @@
 on:
   workflow_run:
-    workflows: ["build"]
+    workflows: ["check_rust_prj"]
     branches: [main]
     types: 
       - completed
-name: Continuous Integration
+name: coverage
 
 jobs:
   dummy:

@@ -1,6 +1,6 @@
 on: [push, pull_request]
 
-name: Continuous integration workflow1
+name: check rust project 
 
 env: 
   package_to_test: '--manifest-path tests/test1/Cargo.toml'
@@ -41,7 +41,7 @@ jobs:
 
   fmt:
     name: Rustfmt
-    needs: check
+    needs: clippy
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -60,6 +60,7 @@ jobs:
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
+    needs: check
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1

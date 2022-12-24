@@ -9,7 +9,7 @@ jobs:
   inputs-outputs:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Get author name
         id: author
         run: echo "author=$(git show -s --format=%an)" >> $GITHUB_OUTPUT

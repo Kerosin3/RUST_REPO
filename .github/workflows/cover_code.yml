@@ -1,6 +1,6 @@
 on:
   workflow_run:
-    workflows: ["check_rust_prj"]
+    workflows: ["check rust project"]
     branches: [main]
     types: 
       - completed

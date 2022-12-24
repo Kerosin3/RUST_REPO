@@ -40,15 +40,17 @@ jobs:
       - name: Run xtask coverage
         uses: actions-rs/cargo@v1
         with:
-          command: xtask
+          command: run
             #command: run
-          args: coverage 
+            #args: coverage 
             #args: -p xtask --manifest-path tests/test1/Cargo.toml
+          args: --package xtask --manifest-path ${{env.project_to_test}}/Cargo.toml coverage
           
 
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v3
         with:
-          files: ${{ env.project_to_test }}coverage/*.lcov
+          #files: ${{ env.project_to_test }}coverage/*.lcov
+          files: coverage/*.lcov
           grcov: true
             # token: ${{ secrets.YOUR_SECRET_TOKEN }}

@@ -40,7 +40,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: xtask
-          args: coverage
+          args: coverage --manifest-path tests/test1/Cargo.toml
           
 
       - name: Upload to codecov.io

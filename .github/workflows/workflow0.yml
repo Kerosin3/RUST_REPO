@@ -2,6 +2,8 @@ name: Inputs and outputs
 
 on:
   push:
+env:
+  SOME_VAR: ok
 
 jobs:
   inputs-outputs:
@@ -25,3 +27,6 @@ jobs:
           echo "This is an info message"
           echo "::warning::This is a warning"
           echo "::error::This is an error"    
+      - name: Print variable
+        run: |
+          echo "This is your variable $SOME_VAR"

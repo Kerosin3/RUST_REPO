@@ -2,8 +2,8 @@ on: [push, pull_request]
 
 name: Continuous integration workflow1
 
-installed_soft: ['git','vim','mc','tcpdump','net-tools','nmap','nftables','bash-completion','most','zsh','nnn','mtr','liburing','protobuf-c','libsodium','gnu-netcat']
-variables1: ['--manifest-path']
+  #installed_soft: ['git','vim','mc','tcpdump','net-tools','nmap','nftables','bash-completion','most','zsh','nnn','mtr','liburing','protobuf-c','libsodium','gnu-netcat']
+  variables1: ['--manifest-path']
 
 jobs:
   check:

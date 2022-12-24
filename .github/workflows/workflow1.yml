@@ -3,8 +3,8 @@ on: [push, pull_request]
 name: Continuous integration workflow1
 
   #installed_soft: ['git','vim','mc','tcpdump','net-tools','nmap','nftables','bash-completion','most','zsh','nnn','mtr','liburing','protobuf-c','libsodium','gnu-netcat']
-  variables1: ['--manifest-path']
-
+env: 
+  package_to_test: '--manifest-path tests/test1/Cargo.toml'
 jobs:
   check:
     name: Check
@@ -19,7 +19,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --manifest-path tests/test1/Cargo.toml
+          args: ${package_to_test}
 
   test:
     name: Test Suite

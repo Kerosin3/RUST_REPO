@@ -6,7 +6,7 @@ env:
   SOME_VAR: ok
 
 jobs:
-  inputs-outputs:
+  test-simple-tasks:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3

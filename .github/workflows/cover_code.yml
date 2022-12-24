@@ -4,22 +4,48 @@ on:
     branches: [main]
     types: 
       - completed
-name: coverage
+name: coverage-report
 env:
   project_to_test: "./tests/test1"
+
+
 jobs:
-  coverage_report:
-    name: Generate coverage report
-    runs-on: ubuntu-latest
+  coverage:
+    name: Coverage
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        rust: [nightly]
+    runs-on: ${{ matrix.os }}
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
-    # ... Generate LCOV files or download it from a different job
-    - name: Report code coverage
-      uses: zgosalvez/github-actions-report-lcov@v2
-      with:
-        coverage-files: ${{ env.project_to_test }}/lcov.*.info
-        minimum-coverage: 90
-        artifact-name: code-coverage-report
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-          # working-directory: apps/my-first-app
+      - name: Checkout sources
+        uses: actions/checkout@v3
+
+      - name: Install nightly toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.rust }}
+          override: true
+          components: llvm-tools-preview
+
+      - uses: Swatinem/rust-cache@v1
+
+      - name: Download grcov
+        run: |
+          mkdir -p "${HOME}/.local/bin"
+          curl -sL https://github.com/mozilla/grcov/releases/download/v0.8.10/grcov-x86_64-unknown-linux-gnu.tar.bz2 | tar jxf - -C "${HOME}/.local/bin"
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Run xtask coverage
+        uses: actions-rs/cargo@v1
+        with:
+          command: xtask
+          args: coverage
+          
+
+      - name: Upload to codecov.io
+        uses: codecov/codecov-action@v3
+        with:
+          files: ${{ env.project_to_test }}coverage/*.lcov
+          grcov: true
+            # token: ${{ secrets.YOUR_SECRET_TOKEN }}

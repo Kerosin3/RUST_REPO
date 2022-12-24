@@ -10,10 +10,17 @@ jobs:
       - uses: actions/checkout@v2
       - name: Get author name
         id: author
-        run: echo "::set-output name=author::$(git show -s --format=%an)"
+        run: echo "{name}={value} >>GITHUB_OUTPUT::$(git show -s --format=%an)"
+        #run: echo "::set-output name=author::$(git show -s --format=%an)"
       - name: Print author name
         run: echo "${{ steps.author.outputs.author }}"
       - name: Print author name with an environment variable
         run: echo $AUTHOR_NAME
         env:
           AUTHOR_NAME: ${{ steps.author.outputs.author }}
+      - name: Log levels
+        run: |
+          echo "::debug::This is a debug message"
+          echo "This is an info message"
+          echo "::warning::This is a warning"
+          echo "::error::This is an error"    

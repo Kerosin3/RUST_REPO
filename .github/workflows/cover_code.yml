@@ -37,7 +37,7 @@ jobs:
           echo "$HOME/.local/bin" >> $GITHUB_PATH
           cd ${{env.project_to_test}}
 
-      - name: Run xtask coverage
+      - name: Run xtask coverage test1
         uses: actions-rs/cargo@v1
         with:
           command: run
@@ -45,7 +45,6 @@ jobs:
             #args: coverage 
             #args: -p xtask --manifest-path tests/test1/Cargo.toml
           args: --package xtask --manifest-path ${{env.project_to_test}}/Cargo.toml coverage
-          
 
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v3

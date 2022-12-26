@@ -2,4 +2,4 @@
 members=[
 "xtask",
 ]
-exclude=["tests/test2"]
+exclude=["tests/test2","misc/"] 

@@ -1,7 +1,7 @@
-use std::borrow::{Borrow, BorrowMut};
+#![feature(associated_type_defaults)]
+use std::process::Output;
 use std::rc::Rc;
 use std::cell::RefCell;
-
 
 #[derive(thiserror::Error, Debug, Clone)]
     pub enum ErrorC {
@@ -95,42 +95,39 @@ impl RoomObj for Room_Generic{
 
 trait Device {
     fn get_name(&self)-> String;
-    fn set_state(&mut self,state: bool);
+    fn set_state(&mut self,state: bool) ;
     fn get_state(&self) -> bool;
 }
 
+struct Device_Handler{
+}
 
-struct Generic_Device<'a,T:Device>{
-    dev: &'a T,
+
+struct Example_Device{
     name: String,
-    state: bool
+    state: bool,
 }
 
-impl<'a, T> Generic_Device<'a,T>
-where T: Device {
-    fn new(dev:&'a T,name: &str,state:bool)->Self{
-        Self { dev, name: name.to_string() , state  }
-    }
-    fn get_state(&self)->bool{
-        self.dev.get_state()
+impl Example_Device{
+    fn new(name: String) -> Self{
+        Self{name,state: false}
     }
 }
 
-impl<'a,T> Device for Generic_Device<'a,T>
-where T:Device {
-    fn get_name(&self)-> String {
+impl Device for Example_Device {
+    fn get_name(&self) -> String{
         self.name.clone()
     }
-    fn set_state(&mut self,state:bool) {
+    fn get_state(&self) -> bool{
+        self.state 
+        }
+    fn set_state(&mut self,state: bool){
         self.state = state;
-    }
-    fn get_state(&self) -> bool {
-       self.state 
     }
 }
 
-fn main() {
 
+fn main() {
 }
 
 #[cfg(test)]
@@ -152,17 +149,34 @@ mod tests{
     fn dev_creation(){
         let mut sh = SmartHouse::new();
         assert!(sh.append_room("room1").is_ok());
+        let dev: Rc <dyn Device>  = Rc::new(Example_Device::new("dev0".to_string()));        
         //let mut g_dev: Rc<dyn Device> = Rc::new(Generic_Dvice(String::from("some_device")));
-        let mut dev = 
-        let mut g_dev: Rc<dyn Device> = Rc::new(Generic_Device::new(dev, name, state))
-        assert!(sh.append_dev_to_a_room("room1",&g_dev).is_ok());
+        //let mut g_dev: Rc<dyn Device> = Rc::new(Generic_Device::new(dev, name, state))
+        assert!(sh.append_dev_to_a_room("room1",&dev).is_ok());
     }
     #[test]
     fn add_to_n_exists_room(){
         let mut sh = SmartHouse::new();
         assert!(sh.append_room("room2").is_ok());
-        let mut g_dev: Rc<dyn Device> = Rc::new(Generic_Dvice(String::from("some_device")));
-        assert!(sh.append_dev_to_a_room("room1",&g_dev).is_err());
+        let dev: Rc <dyn Device>  = Rc::new(Example_Device::new("dev0".to_string()));        
+       // let mut g_dev: Rc<dyn Device> = Rc::new(Generic_Dvice(String::from("some_device")));
+        assert!(sh.append_dev_to_a_room("room1",&dev).is_err());
+    }
+    #[test]
+    fn dev_creation_and_change(){
+        let mut sh = SmartHouse::new();
+        assert!(sh.append_room("room1").is_ok());
+        let dev: Rc<RefCell<dyn Device>> = Rc::new(RefCell::new(  Example_Device::new("dev0".to_string())));    
+        // как процесс оборачивания завернуть для юзера? все эти обертки - лишнее,
+        // юзер создал девайс и должен через этот объект умтеь им управлять, в свою очередь его
+        // должн уметь втянуть "умный дом" с помощью  функции append_dev_to_a_room, и в случае чего
+        // и внутри сам поменять состояние объекта девайс
+        //  то же самое ниже, юзер не должен приставлять борровы, как обернуть все это?
+        //  возвращать юзеру какой то хандлер или что? 
+//      assert!(sh.append_dev_to_a_room("room1",dev.borrow()).is_ok());     
+        assert_eq!(dev.borrow().get_state(),false);
+        dev.borrow_mut().set_state(true);
+        assert_eq!(dev.borrow().get_state(),true);
     }
 
 

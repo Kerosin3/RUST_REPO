@@ -2,7 +2,8 @@
 #![allow(clippy::new_without_default)]
 pub mod server_data {
     use lib_shouse::home::home::home::Device;
-    pub static mut SMART_SOCKET_SERIAL: usize = 0;
+    use std::sync::atomic::{AtomicUsize,Ordering};
+    pub static mut SMART_SOCKET_SERIAL: AtomicUsize = AtomicUsize::new();
     pub struct SmartSocket {
         name: String,
         state: bool,

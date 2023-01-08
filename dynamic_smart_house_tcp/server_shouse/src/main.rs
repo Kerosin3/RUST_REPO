@@ -64,9 +64,6 @@ fn main() {
                         dev_name,
                         some_house.get_device_property(dev_name.as_str()).unwrap(),
                         some_house.get_device_state(dev_name.as_str()).unwrap(),
-                        //_dev0_handler.get_devname().unwrap(),
-                        //_dev0_handler.get_property_state().unwrap(),
-                        //_dev0_handler.get_state().unwrap()
                     ),
                 )
                 .expect("error writing message"),
@@ -79,7 +76,6 @@ fn main() {
                             "{}, dev name: {}, {}",
                             pattern,
                             dev_name,
-                            //                            _dev0_handler.get_devname().unwrap(),
                             "turned on the device!"
                         ),
                     )
@@ -93,7 +89,6 @@ fn main() {
                             "{}, dev name: {}, {}",
                             pattern,
                             dev_name,
-                            //_dev0_handler.get_devname().unwrap(),
                             "turned off the device!"
                         ),
                     )

@@ -30,10 +30,18 @@ pub mod home {
         ErrorOther,
         #[error("Error execute handler command")]
         ErrorHandleOperation,
+        #[error("no such device exists")]
+        DeviceNotExists,
     }
 
     pub struct SmartHouse {
         rooms: Vec<Rc<dyn RoomObj>>,
+    }
+
+    impl Default for SmartHouse {
+        fn default() -> Self {
+            SmartHouse::new()
+        }
     }
 
     impl SmartHouse {
@@ -71,10 +79,10 @@ pub mod home {
                 None
             }
         }
-        pub fn test_whether_a_dev_exists(&self, dev_name: &str) -> Option<()> {
+        pub fn test_whether_a_dev_exists(&self, dev_name: &str) -> Option<(String, String)> {
             for (_i, room) in self.rooms.iter().enumerate() {
-                if room.find_dev_name(&dev_name).is_some() {
-                    return Some(());
+                if room.find_dev_name(dev_name).is_some() {
+                    return Some((room.get_room_name().to_owned(), dev_name.to_owned()));
                 } else {
                     continue;
                 }
@@ -189,6 +197,52 @@ pub mod home {
             }
         }
 
+        pub fn change_dev_property_in_room(
+            &mut self,
+            a_room: &str,
+            dev_name: &str,
+            property: &dyn std::fmt::Display,
+        ) -> Result<(), ErrorC> {
+            if let Some(room_pos) = self.test_whether_room_exists(a_room) {
+                if let Some(_dev_pos) = self.rooms.get(room_pos).unwrap().find_dev_name(dev_name) {
+                    self.rooms
+                        .get(room_pos)
+                        .unwrap()
+                        .change_dev_property(dev_name, property);
+                    Ok(())
+                } else {
+                    Err(ErrorC::DeviceInRoomNotExists(a_room.to_string()))
+                }
+            } else {
+                Err(ErrorC::RoomNotExists(a_room.to_string()))
+            }
+        }
+        pub fn get_device_state(&self, devname: &str) -> Result<bool, ErrorC> {
+            for (_i, room) in self.rooms.iter().enumerate() {
+                if let Some(dev_pos) = room.find_dev_name(devname) {
+                    return Ok(self.rooms.get(_i).unwrap().get_dev_state(devname).unwrap());
+                } else {
+                    continue;
+                }
+            }
+            Err(ErrorC::DeviceNotExists)
+        }
+        pub fn get_device_property(&self, devname: &str) -> Result<String, ErrorC> {
+            for (_i, room) in self.rooms.iter().enumerate() {
+                if let Some(dev_pos) = room.find_dev_name(devname) {
+                    return Ok(self
+                        .rooms
+                        .get(_i)
+                        .unwrap()
+                        .get_dev_property(devname)
+                        .unwrap());
+                } else {
+                    continue;
+                }
+            }
+            Err(ErrorC::DeviceNotExists)
+        }
+
         fn change_dev_state_in_room(
             &mut self,
             a_room: &str,
@@ -218,6 +272,9 @@ pub mod home {
         fn change_dev_state(&self, state: bool, name: &str);
         fn get_all_devices(&self) -> Option<String>;
         fn as_any(&self) -> &dyn Any;
+        fn change_dev_property(&self, name: &str, property: &dyn std::fmt::Display);
+        fn get_dev_state(&self, devname: &str) -> Option<bool>;
+        fn get_dev_property(&self, devname: &str) -> Option<String>;
     }
 
     type Device_wrapper = Box<RefCell<Vec<Rc<RefCell<dyn Device>>>>>;
@@ -266,6 +323,38 @@ pub mod home {
             }
         }
 
+        fn get_dev_property(&self, devname: &str) -> Option<String> {
+            if let Some(dev_pos) = self.find_dev_name(devname) {
+                Some(
+                    self.devices
+                        .as_ref()
+                        .borrow_mut()
+                        .get(dev_pos)
+                        .unwrap()
+                        .borrow()
+                        .get_property_info(),
+                )
+            } else {
+                None
+            }
+        }
+
+        fn get_dev_state(&self, devname: &str) -> Option<bool> {
+            if let Some(dev_pos) = self.find_dev_name(devname) {
+                Some(
+                    self.devices
+                        .as_ref()
+                        .borrow_mut()
+                        .get(dev_pos)
+                        .unwrap()
+                        .borrow()
+                        .get_state(),
+                )
+            } else {
+                None
+            }
+        }
+
         fn get_all_devices(&self) -> Option<String> {
             let mut out_string = String::new();
             for (j, dev) in self.devices.as_ref().borrow().iter().enumerate() {
@@ -292,8 +381,19 @@ pub mod home {
                     .set_state(state); //;get().set_state(state) ;
             }
         }
+        fn change_dev_property(&self, name: &str, property: &dyn std::fmt::Display) {
+            if let Some(dev_pos) = self.find_dev_name(name) {
+                self.devices
+                    .as_ref()
+                    .borrow_mut()
+                    .get(dev_pos)
+                    .unwrap()
+                    .borrow_mut()
+                    .set_property_info(property);
+                // .set_state(state); //;get().set_state(state) ;
+            }
+        }
     }
-
     pub trait Device {
         fn get_name(&self) -> String;
         fn set_state(&mut self, state: bool);
@@ -339,7 +439,8 @@ pub mod home {
             new_info: impl std::fmt::Display,
         ) -> Result<(), ErrorC> {
             if let Some(rez) = self.dev.upgrade() {
-                Ok(rez.borrow_mut().set_property_info(&new_info.to_string()))
+                rez.borrow_mut().set_property_info(&new_info.to_string());
+                Ok(())
             } else {
                 Err(ErrorC::ErrorGettingState)
             }

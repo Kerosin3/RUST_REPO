@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use lib_shouse::home::home::home::*;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -74,6 +76,15 @@ fn main() {
         _dev0_handler.get_property_state().unwrap()
     );
     println!(
+        "current property state: {}",
+        _dev1_handler.get_property_state().unwrap()
+    );
+    // change via home
+    assert!(some_house
+        .change_dev_property_in_room(&room_0, "termometer_#0", &42.4_f32)
+        .is_ok());
+    println!(
+        //test now!
         "current property state: {}",
         _dev1_handler.get_property_state().unwrap()
     );

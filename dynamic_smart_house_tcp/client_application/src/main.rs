@@ -1,3 +1,4 @@
+#![allow(unused_imports)]
 //use lib_shouse::home::home::home::*;
 use serde::{Deserialize, Serialize};
 use std::io::BufReader;
@@ -57,7 +58,7 @@ fn main() {
     let msg = bincode::serialize(&ipc_msg).unwrap(); // serialize msg
     let mut buf: Vec<u8> = Vec::with_capacity(4096);
     let stream = TcpStream::connect("127.0.0.1:12345");
-    if stream.is_err(){
+    if stream.is_err() {
         println!("error connecting to smart house server, check whether it is online, aborting the app...");
         std::process::exit(1);
     }

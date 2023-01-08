@@ -1,36 +1,40 @@
 #![allow(dead_code)]
 #![allow(clippy::new_without_default)]
-pub mod server_data {
+pub mod termometer_server_data {
+
     use lib_shouse::home::home::home::Device;
-    pub static mut SMART_SOCKET_SERIAL: usize = 0;
-    pub struct SmartSocket {
+
+    static mut TERMOMETER_SERIAL: usize = 0;
+
+    pub struct Termometer {
         name: String,
         state: bool,
-        consum_power: f32,
+        temperature: f32,
     }
 
-    impl SmartSocket {
+    impl Termometer {
         pub fn new() -> Self {
             unsafe {
                 let out = Self {
                     name: [
-                        "smart_socket_",
+                        "termometer_",
                         "#",
-                        SMART_SOCKET_SERIAL.to_string().as_str(), // complicated
+                        TERMOMETER_SERIAL.to_string().as_str(), // complicated
                     ]
                     .concat(),
                     state: false,
-                    consum_power: 0.0,
+                    temperature: 0.0,
                 };
-                SMART_SOCKET_SERIAL += 1_usize;
+                TERMOMETER_SERIAL += 1_usize;
                 out
             }
         }
-        pub fn set_cons_power(&mut self, temp: f32) {
-            self.consum_power = temp;
+        fn set_temperature(&mut self, temperature: f32) {
+            self.temperature = temperature;
         }
     }
-    impl Device for SmartSocket {
+
+    impl Device for Termometer {
         fn get_name(&self) -> String {
             self.name.clone()
         }
@@ -41,10 +45,10 @@ pub mod server_data {
             self.state
         }
         fn get_property_info(&self) -> String {
-            format!("current power consumption is {}", self.consum_power)
+            format!("current temperature is {}", self.temperature)
         }
         fn set_property_info(&mut self, new_info: &dyn std::fmt::Display) {
-            self.consum_power = new_info.to_string().parse::<f32>().unwrap();
+            self.temperature = new_info.to_string().parse::<f32>().unwrap();
         }
     }
 }

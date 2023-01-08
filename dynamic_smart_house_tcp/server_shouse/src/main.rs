@@ -1,11 +1,15 @@
+#![allow(dead_code)]
+#![allow(clippy::new_without_default)]
 use lib_shouse::home::home::home::*;
 use serde::{Deserialize, Serialize};
 use server_shouse::server_data::server_data::*;
+use server_shouse::termometer_server_data::termometer_server_data::*;
 use std::cell::RefCell;
 use std::io::{BufRead, Write};
 use std::io::{BufReader, BufWriter, Error};
 use std::net::{TcpListener, TcpStream};
 use std::rc::Rc;
+use std::thread;
 
 static mut SERIAL: usize = 0;
 
@@ -14,8 +18,11 @@ fn main() {
     let room_0 = "room_0".to_string();
     some_house.append_room(&room_0).unwrap();
     let dev0: Rc<RefCell<dyn Device>> = Rc::new(RefCell::new(SmartSocket::new()));
-    let _dev0_handler = some_house.append_dev_to_a_room(&room_0, &dev0).unwrap(); // append dev to room0
+    let dev1: Rc<RefCell<dyn Device>> = Rc::new(RefCell::new(Termometer::new()));
+    let _dev0_handler = some_house.append_dev_to_a_room(&room_0, &dev0).unwrap(); // append dev0 to room0
+    let _dev1_handler = some_house.append_dev_to_a_room(&room_0, &dev1).unwrap(); // append dev1 to room0
     _dev0_handler.property_change_state(9000_f32).unwrap();
+    _dev1_handler.property_change_state(36.6_f32).unwrap();
     //println!("dev name is {}", _dev0_handler.get_devname().unwrap());
     //println!("current property state: {}", _dev0_handler.get_property_state().unwrap() );
     //------------------------------------------
@@ -35,14 +42,18 @@ fn main() {
             // process data
             let ipc_msg_from_client: IpcMessage = bincode::deserialize(&data_readed).unwrap();
             let dev_name = ipc_msg_from_client.devname;
-            println!("looking for a device >>{}<<", dev_name);
-            if some_house.test_whether_a_dev_exists(&dev_name).is_none() {
+            println!("looking for a device >>{dev_name}<<");
+            if let Some((room_name, dev_name)) = some_house.test_whether_a_dev_exists(&dev_name) {
+                println!("found valid dev in house,room: {room_name}, {dev_name}");
+                // got room and dev
+            } else {
+                // None
                 println!("no such device!, aborting connection");
                 text_msg.push_str(" no such device in the house! :");
                 text_msg.push_str(&dev_name);
                 send_all_data(&text_msg, &mut writer);
                 continue;
-            };
+            }
             match ipc_msg_from_client.state {
                 IpcState::Get_state => std::fmt::write(
                     // send current data
@@ -50,9 +61,12 @@ fn main() {
                     format_args!(
                         "{}, dev name: {}, property: {}, device is turned on: {}",
                         pattern,
-                        _dev0_handler.get_devname().unwrap(),
-                        _dev0_handler.get_property_state().unwrap(),
-                        _dev0_handler.get_state().unwrap()
+                        dev_name,
+                        some_house.get_device_property(dev_name.as_str()).unwrap(),
+                        some_house.get_device_state(dev_name.as_str()).unwrap(),
+                        //_dev0_handler.get_devname().unwrap(),
+                        //_dev0_handler.get_property_state().unwrap(),
+                        //_dev0_handler.get_state().unwrap()
                     ),
                 )
                 .expect("error writing message"),
@@ -64,7 +78,8 @@ fn main() {
                         format_args!(
                             "{}, dev name: {}, {}",
                             pattern,
-                            _dev0_handler.get_devname().unwrap(),
+                            dev_name,
+                            //                            _dev0_handler.get_devname().unwrap(),
                             "turned on the device!"
                         ),
                     )
@@ -77,7 +92,8 @@ fn main() {
                         format_args!(
                             "{}, dev name: {}, {}",
                             pattern,
-                            _dev0_handler.get_devname().unwrap(),
+                            dev_name,
+                            //_dev0_handler.get_devname().unwrap(),
                             "turned off the device!"
                         ),
                     )
@@ -89,12 +105,6 @@ fn main() {
             println!("error while reading data");
         }
         send_all_data(&text_msg, &mut writer);
-        println!(
-            "current property state: {}, enabled? : {}",
-            _dev0_handler.get_property_state().unwrap(),
-            _dev0_handler.get_state().unwrap()
-        );
-
         println!("closing connection!");
         unsafe {
             SERIAL += 1;

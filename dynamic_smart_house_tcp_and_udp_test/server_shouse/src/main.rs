@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 #![allow(clippy::new_without_default)]
+#![feature(mutex_unlock)]
+#![allow(unused_imports)]
 use lib_shouse::home::home::home::*;
 use server_shouse::server::server_socket_struct::*;
 use server_shouse::server::server_tcp_loop::*;
@@ -22,17 +24,15 @@ fn main() {
     let _dev1_handler = some_house.append_dev_to_a_room(&room_0, &dev1).unwrap(); // append dev1 to room0
     _dev0_handler.property_change_state(9000_f32).unwrap();
     _dev1_handler.property_change_state(36.6_f32).unwrap();
-    //println!("dev name is {}", _dev0_handler.get_devname().unwrap());
-    //println!("current property state: {}", _dev0_handler.get_property_state().unwrap() );
     //------------------------------------------
     let listener = TcpListener::bind("127.0.0.1:12345").expect("bind failed");
     //listener.set_nonblocking(true).expect("error setting non blocking"); hogh workload
 
     // start tcp loop
-    let mut wrap_home = Arc::new(Mutex::new(some_house));
-    let mut tcp_thread = Arc::clone(&wrap_home);
+    let wrap_home = Arc::new(Mutex::new(some_house));
+    let tcp_thread = Arc::clone(&wrap_home);
     let tcp_loop_thrd = thread::spawn(move || tcp_main_loop(listener, tcp_thread));
-    //    tcp_main_loop(listener, some_house);
+    //tcp_main_loop(listener, some_house);
     tcp_loop_thrd.join().unwrap();
 }
 

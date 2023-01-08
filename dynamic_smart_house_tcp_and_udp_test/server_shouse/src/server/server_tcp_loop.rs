@@ -1,3 +1,4 @@
+#![allow(unused_imports)]
 use lib_shouse::home::home::home::SmartHouse;
 use serde::{Deserialize, Serialize};
 use std::io::{BufRead, Write};
@@ -27,11 +28,11 @@ pub fn tcp_main_loop(listener: TcpListener, some_house: Arc<Mutex<SmartHouse>>) 
             //let mut room_name_found = String::new(); // oerkill?
             //let mut dev_name_found = String::new();
             let rom_dev: Option<(String, String)> = some_house
-                .lock()
+                .try_lock()
                 .unwrap()
                 .test_whether_a_dev_exists(&dev_name);
             let (room_name_found, dev_name_found) = if rom_dev.is_some() {
-                // ???????
+                // ??????? COMPLICATED
                 println!("found valid dev! {dev_name}");
                 rom_dev.unwrap()
             } else {
@@ -43,30 +44,36 @@ pub fn tcp_main_loop(listener: TcpListener, some_house: Arc<Mutex<SmartHouse>>) 
                 continue;
             };
             match ipc_msg_from_client.state {
-                IpcState::Get_state => std::fmt::write(
-                    // send current data
-                    &mut text_msg,
-                    format_args!(
-                        "{}, dev name: {}, property: {}, device is turned on: {}",
-                        pattern,
-                        dev_name,
+                IpcState::Get_state => {
+                    let dev_property = {
+                        // complicated!
                         some_house
-                            .lock()
+                            .try_lock()
                             .unwrap()
                             .get_device_property(dev_name_found.as_str())
-                            .unwrap(),
+                            .unwrap()
+                    };
+                    let dev_state = {
                         some_house
-                            .lock()
+                            .try_lock()
                             .unwrap()
                             .get_device_state(dev_name_found.as_str())
-                            .unwrap(),
-                    ),
-                )
-                .expect("error writing message"),
+                            .unwrap()
+                    };
+                    std::fmt::write(
+                        // send current data
+                        &mut text_msg,
+                        format_args!(
+                            "{}, dev name: {}, property: {}, device is turned on: {}",
+                            pattern, dev_name, dev_property, dev_state
+                        ),
+                    )
+                    .expect("error writing message")
+                }
                 IpcState::Set_state => {} // do nothing
                 IpcState::Turn_on => {
                     assert!(some_house
-                        .lock()
+                        .try_lock()
                         .unwrap()
                         .change_dev_state_in_room(&room_name_found, &dev_name_found, true)
                         .is_ok());

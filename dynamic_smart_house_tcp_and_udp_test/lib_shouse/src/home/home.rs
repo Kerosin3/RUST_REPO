@@ -70,7 +70,7 @@ pub mod home {
             if let Some(n_room) = self.test_whether_room_exists(a_room) {
                 let room_generic = self.rooms.get(n_room).unwrap().as_any();
                 if let Some(obj) = room_generic.downcast_ref::<Room_Generic>() {
-                    Some(obj.devices.lock().unwrap().len())
+                    Some(obj.devices.try_lock().unwrap().len())
                 } else {
                     None
                 }
@@ -91,7 +91,7 @@ pub mod home {
 
         pub fn get_dev_report(&self, a_device: &Arc<Mutex<dyn Device>>) -> Option<String> {
             let mut out_str = String::new();
-            let dev_name = a_device.lock().unwrap().get_name();
+            let dev_name = a_device.try_lock().unwrap().get_name();
             for (_i, room) in self.rooms.iter().enumerate() {
                 if room.find_dev_name(&dev_name).is_some() {
                     fmt::write(
@@ -117,7 +117,11 @@ pub mod home {
                     Some(obj) => {
                         if let Some(dev_num) = obj.find_dev_name(a_device) {
                             // find matched device
-                            obj.devices.as_ref().lock().unwrap().swap_remove(dev_num); // remove
+                            obj.devices
+                                .as_ref()
+                                .try_lock()
+                                .unwrap()
+                                .swap_remove(dev_num); // remove
                             Ok(())
                         } else {
                             Err(ErrorC::DeviceInRoomNotExists(a_device.to_owned()))
@@ -178,7 +182,7 @@ pub mod home {
                     Ok(Device_Handler::new(a_device))
                 } else {
                     Err(ErrorC::DeviceInRoomExists(
-                        a_device.lock().unwrap().get_name(),
+                        a_device.try_lock().unwrap().get_name(),
                     ))
                 }
             } else {
@@ -298,11 +302,15 @@ pub mod home {
             self
         }
         fn add_device(&self, some_dev: &Arc<Mutex<dyn Device + Send>>) -> Result<(), ErrorC> {
-            if self
-                .find_dev_name(some_dev.try_lock().unwrap().get_name().as_ref())
-                .is_some()
-            {
-                Err(ErrorC::DeviceInRoomExists( some_dev.as_ref().try_lock().unwrap().get_name() ))
+            let name = {
+                let lock = some_dev.try_lock().unwrap();
+                lock.get_name()
+                // unlock here
+            };
+            if self.find_dev_name(name.as_ref()).is_some() {
+                Err(ErrorC::DeviceInRoomExists(
+                    some_dev.as_ref().try_lock().unwrap().get_name(),
+                ))
             } else {
                 let mut guard = self.devices.as_ref().try_lock().unwrap();
                 guard.push(Arc::clone(some_dev));
@@ -322,7 +330,7 @@ pub mod home {
                 Some(
                     self.devices
                         .as_ref()
-                        .lock()
+                        .try_lock()
                         .unwrap()
                         .iter()
                         .position(|x| x.try_lock().unwrap().get_name() == name)
@@ -338,11 +346,11 @@ pub mod home {
                 Some(
                     self.devices
                         .as_ref()
-                        .lock()
+                        .try_lock()
                         .unwrap()
                         .get(dev_pos)
                         .unwrap()
-                        .lock()
+                        .try_lock()
                         .unwrap()
                         .get_property_info(),
                 )
@@ -356,11 +364,11 @@ pub mod home {
                 Some(
                     self.devices
                         .as_ref()
-                        .lock()
+                        .try_lock()
                         .unwrap()
                         .get(dev_pos)
                         .unwrap()
-                        .lock()
+                        .try_lock()
                         .unwrap()
                         .get_state(),
                 )
@@ -371,10 +379,10 @@ pub mod home {
 
         fn get_all_devices(&self) -> Option<String> {
             let mut out_string = String::new();
-            for (j, dev) in self.devices.as_ref().lock().unwrap().iter().enumerate() {
+            for (j, dev) in self.devices.as_ref().try_lock().unwrap().iter().enumerate() {
                 fmt::write(
                     &mut out_string,
-                    format_args!("dev №{},name: {} ", j, dev.lock().unwrap().get_name()),
+                    format_args!("dev №{},name: {} ", j, dev.try_lock().unwrap().get_name()),
                 )
                 .expect("error while writing");
             }
@@ -388,11 +396,11 @@ pub mod home {
             if let Some(dev_pos) = self.find_dev_name(name) {
                 self.devices
                     .as_ref()
-                    .lock()
+                    .try_lock()
                     .unwrap()
                     .get(dev_pos)
                     .unwrap()
-                    .lock()
+                    .try_lock()
                     .unwrap()
                     .set_state(state); //;get().set_state(state) ;
             }
@@ -401,11 +409,11 @@ pub mod home {
             if let Some(dev_pos) = self.find_dev_name(name) {
                 self.devices
                     .as_ref()
-                    .lock()
+                    .try_lock()
                     .unwrap()
                     .get(dev_pos)
                     .unwrap()
-                    .lock()
+                    .try_lock()
                     .unwrap()
                     .set_property_info(property);
                 // .set_state(state); //;get().set_state(state) ;
@@ -432,14 +440,14 @@ pub mod home {
         }
         pub fn get_devname(&self) -> Result<String, ErrorC> {
             if let Some(rez) = self.dev.upgrade() {
-                Ok(rez.lock().unwrap().get_name())
+                Ok(rez.try_lock().unwrap().get_name())
             } else {
                 Err(ErrorC::ErrorOther)
             }
         }
         pub fn change_state(&self, new_state: bool) -> Result<(), ErrorC> {
             if let Some(rez) = self.dev.upgrade() {
-                rez.lock().unwrap().set_state(new_state);
+                rez.try_lock().unwrap().set_state(new_state);
                 Ok(())
             } else {
                 Err(ErrorC::ErrorSettingState)
@@ -447,7 +455,7 @@ pub mod home {
         }
         pub fn get_state(&self) -> Result<bool, ErrorC> {
             if let Some(rez) = self.dev.upgrade() {
-                Ok(rez.lock().unwrap().get_state())
+                Ok(rez.try_lock().unwrap().get_state())
             } else {
                 Err(ErrorC::ErrorGettingState)
             }
@@ -457,7 +465,9 @@ pub mod home {
             new_info: impl std::fmt::Display,
         ) -> Result<(), ErrorC> {
             if let Some(rez) = self.dev.upgrade() {
-                rez.lock().unwrap().set_property_info(&new_info.to_string());
+                rez.try_lock()
+                    .unwrap()
+                    .set_property_info(&new_info.to_string());
                 Ok(())
             } else {
                 Err(ErrorC::ErrorGettingState)
@@ -515,7 +525,6 @@ pub mod home {
     #[cfg(test)]
     mod tests {
         use super::*;
-        /*
         #[test]
         fn create_and_append_room() {
             let mut sh = SmartHouse::new();
@@ -533,7 +542,7 @@ pub mod home {
             assert!(sh.append_room("room1").is_ok());
             let dev = wrap_device(Example_Device::new("dev0".to_string()));
             assert!(sh.append_dev_to_a_room("room1", &dev).is_ok());
-        }*/
+        }
         #[test]
         fn exists_dev_append() {
             let mut sh = SmartHouse::new();
@@ -543,8 +552,6 @@ pub mod home {
             assert!(sh.append_dev_to_a_room("room1", &dev).is_ok());
             assert!(sh.append_dev_to_a_room("room1", &dev).is_err());
         }
-        /*
-
         #[test]
         fn add_to_n_exists_room() {
             let mut sh = SmartHouse::new();
@@ -643,6 +650,7 @@ pub mod home {
             assert!(sh.append_room(&room3).is_ok());
             assert!(sh.delete_room("room3").is_ok_and(|x| x == (3, 2)));
         }
+        /*
         #[test]
         fn test_delete_dev() {
             let mut sh = SmartHouse::new();

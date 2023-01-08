@@ -1,3 +1,0 @@
-[workspace]
-members = ["lib_shouse","shouse_b","server_shouse","client_application"]
-

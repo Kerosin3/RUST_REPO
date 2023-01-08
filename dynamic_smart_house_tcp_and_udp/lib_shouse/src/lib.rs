@@ -1,4 +1,5 @@
 #![feature(associated_type_defaults)]
+#![feature(mutex_unlock)]
 #![feature(is_some_and)]
 #[allow(unused_imports)]
 #[allow(unused_variables)]

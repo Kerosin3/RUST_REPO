@@ -1,14 +1,15 @@
+#![allow(unused_imports)]
 use lib_shouse::home::home::home::SmartHouse;
 use serde::{Deserialize, Serialize};
 use std::io::{BufRead, Write};
 use std::io::{BufReader, BufWriter, Error};
 use std::net::{TcpListener, TcpStream};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 
 static SERIAL_MSG: AtomicUsize = AtomicUsize::new(0);
 
-pub fn tcp_main_loop(listener: TcpListener, mut some_house: SmartHouse) {
+pub fn tcp_main_loop(listener: TcpListener, some_house: Arc<Mutex<SmartHouse>>) {
     let pattern = "message to client:".to_string();
     println!("launching server application");
     while let Some(stream) = listener.incoming().next() {
@@ -26,9 +27,12 @@ pub fn tcp_main_loop(listener: TcpListener, mut some_house: SmartHouse) {
             println!("looking for a device >>{dev_name}<<");
             //let mut room_name_found = String::new(); // oerkill?
             //let mut dev_name_found = String::new();
-            let rom_dev: Option<(String, String)> = some_house.test_whether_a_dev_exists(&dev_name);
+            let rom_dev: Option<(String, String)> = some_house
+                .try_lock()
+                .unwrap()
+                .test_whether_a_dev_exists(&dev_name);
             let (room_name_found, dev_name_found) = if rom_dev.is_some() {
-                // ???????
+                // ??????? COMPLICATED
                 println!("found valid dev! {dev_name}");
                 rom_dev.unwrap()
             } else {
@@ -40,25 +44,37 @@ pub fn tcp_main_loop(listener: TcpListener, mut some_house: SmartHouse) {
                 continue;
             };
             match ipc_msg_from_client.state {
-                IpcState::Get_state => std::fmt::write(
-                    // send current data
-                    &mut text_msg,
-                    format_args!(
-                        "{}, dev name: {}, property: {}, device is turned on: {}",
-                        pattern,
-                        dev_name,
+                IpcState::Get_state => {
+                    let dev_property = {
+                        // complicated!
                         some_house
+                            .try_lock()
+                            .unwrap()
                             .get_device_property(dev_name_found.as_str())
-                            .unwrap(),
+                            .unwrap()
+                    };
+                    let dev_state = {
                         some_house
+                            .try_lock()
+                            .unwrap()
                             .get_device_state(dev_name_found.as_str())
-                            .unwrap(),
-                    ),
-                )
-                .expect("error writing message"),
+                            .unwrap()
+                    };
+                    std::fmt::write(
+                        // send current data
+                        &mut text_msg,
+                        format_args!(
+                            "{}, dev name: {}, property: {}, device is turned on: {}",
+                            pattern, dev_name, dev_property, dev_state
+                        ),
+                    )
+                    .expect("error writing message")
+                }
                 IpcState::Set_state => {} // do nothing
                 IpcState::Turn_on => {
                     assert!(some_house
+                        .try_lock()
+                        .unwrap()
                         .change_dev_state_in_room(&room_name_found, &dev_name_found, true)
                         .is_ok());
                     std::fmt::write(
@@ -72,6 +88,8 @@ pub fn tcp_main_loop(listener: TcpListener, mut some_house: SmartHouse) {
                 }
                 IpcState::Turn_off => {
                     assert!(some_house
+                        .lock()
+                        .unwrap()
                         .change_dev_state_in_room(&room_name_found, &dev_name_found, false)
                         .is_ok());
                     std::fmt::write(

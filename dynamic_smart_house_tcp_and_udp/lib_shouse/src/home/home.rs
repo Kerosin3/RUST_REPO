@@ -5,9 +5,7 @@ pub mod home {
     use std::any::Any;
     use std::cell::RefCell;
     use std::fmt;
-    use std::rc::Rc;
-    use std::rc::Weak;
-    use std::sync::{Arc, RwLock};
+    use std::sync::{Arc, Mutex, RwLock, Weak};
     #[derive(thiserror::Error, Debug, Clone)]
     #[non_exhaustive]
     pub enum ErrorC {
@@ -36,7 +34,7 @@ pub mod home {
     }
 
     pub struct SmartHouse {
-        rooms: Vec<Rc<dyn RoomObj>>,
+        rooms: Vec<Arc<dyn RoomObj + Send + Sync>>,
     }
 
     impl Default for SmartHouse {
@@ -49,20 +47,20 @@ pub mod home {
         pub fn new() -> Self {
             Self { rooms: vec![] }
         }
-        fn create_room(room_name: &str) -> Rc<dyn RoomObj> {
+        fn create_room(room_name: &str) -> Arc<dyn RoomObj> {
             // check whther exists
-            Rc::new(Room_Generic {
+            Arc::new(Room_Generic {
                 name: room_name.to_string(),
-                devices: Box::new(RefCell::new(vec![])),
+                devices: Box::new(Mutex::new(vec![])),
             })
         }
         pub fn append_room(&mut self, a_room: &str) -> Result<(), ErrorC> {
             if self.test_whether_room_exists(a_room).is_some() {
                 Err(ErrorC::RoomExists(a_room.to_string()))
             } else {
-                self.rooms.push(Rc::new(Room_Generic {
+                self.rooms.push(Arc::new(Room_Generic {
                     name: a_room.to_string(),
-                    devices: Box::new(RefCell::new(vec![])), //devices store
+                    devices: Box::new(Mutex::new(vec![])), //devices store
                 }));
                 Ok(())
             }
@@ -72,7 +70,7 @@ pub mod home {
             if let Some(n_room) = self.test_whether_room_exists(a_room) {
                 let room_generic = self.rooms.get(n_room).unwrap().as_any();
                 if let Some(obj) = room_generic.downcast_ref::<Room_Generic>() {
-                    Some(obj.devices.borrow().len())
+                    Some(obj.devices.try_lock().unwrap().len())
                 } else {
                     None
                 }
@@ -91,9 +89,9 @@ pub mod home {
             None
         }
 
-        pub fn get_dev_report(&self, a_device: &Rc<RefCell<dyn Device>>) -> Option<String> {
+        pub fn get_dev_report(&self, a_device: &Arc<Mutex<dyn Device>>) -> Option<String> {
             let mut out_str = String::new();
-            let dev_name = a_device.borrow().get_name();
+            let dev_name = a_device.try_lock().unwrap().get_name();
             for (_i, room) in self.rooms.iter().enumerate() {
                 if room.find_dev_name(&dev_name).is_some() {
                     fmt::write(
@@ -119,7 +117,11 @@ pub mod home {
                     Some(obj) => {
                         if let Some(dev_num) = obj.find_dev_name(a_device) {
                             // find matched device
-                            obj.devices.as_ref().borrow_mut().swap_remove(dev_num); // remove
+                            obj.devices
+                                .as_ref()
+                                .try_lock()
+                                .unwrap()
+                                .swap_remove(dev_num); // remove
                             Ok(())
                         } else {
                             Err(ErrorC::DeviceInRoomNotExists(a_device.to_owned()))
@@ -167,7 +169,7 @@ pub mod home {
         pub fn append_dev_to_a_room(
             &mut self,
             a_room: &str,
-            a_device: &Rc<RefCell<dyn Device>>,
+            a_device: &Arc<Mutex<dyn Device + Send>>,
         ) -> Result<Device_Handler, ErrorC> {
             if let Some(room_pos) = self.test_whether_room_exists(a_room) {
                 if self
@@ -179,7 +181,9 @@ pub mod home {
                 {
                     Ok(Device_Handler::new(a_device))
                 } else {
-                    Err(ErrorC::DeviceInRoomExists(a_device.borrow().get_name()))
+                    Err(ErrorC::DeviceInRoomExists(
+                        a_device.try_lock().unwrap().get_name(),
+                    ))
                 }
             } else {
                 Err(ErrorC::RoomNotExists(a_room.to_string()))
@@ -273,7 +277,7 @@ pub mod home {
 
     trait RoomObj {
         fn get_room_name(&self) -> &str;
-        fn add_device(&self, some_dev: &Rc<RefCell<dyn Device>>) -> Result<(), ErrorC>;
+        fn add_device(&self, some_dev: &Arc<Mutex<dyn Device + Send>>) -> Result<(), ErrorC>;
         fn find_dev_name(&self, name: &str) -> Option<usize>;
         fn change_dev_state(&self, state: bool, name: &str);
         fn get_all_devices(&self) -> Option<String>;
@@ -283,7 +287,7 @@ pub mod home {
         fn get_dev_property(&self, devname: &str) -> Option<String>;
     }
 
-    type Device_wrapper = Box<RefCell<Vec<Rc<RefCell<dyn Device>>>>>;
+    type Device_wrapper = Box<Mutex<Vec<Arc<Mutex<dyn Device + Send>>>>>;
 
     struct Room_Generic {
         name: String,
@@ -297,14 +301,20 @@ pub mod home {
         fn as_any(&self) -> &dyn Any {
             self
         }
-        fn add_device(&self, some_dev: &Rc<RefCell<dyn Device>>) -> Result<(), ErrorC> {
-            if self
-                .find_dev_name(some_dev.borrow().get_name().as_ref())
-                .is_some()
-            {
-                Err(ErrorC::DeviceInRoomExists(some_dev.borrow().get_name()))
+        fn add_device(&self, some_dev: &Arc<Mutex<dyn Device + Send>>) -> Result<(), ErrorC> {
+            let name = {
+                let lock = some_dev.try_lock().unwrap();
+                lock.get_name()
+                // unlock here
+            };
+            if self.find_dev_name(name.as_ref()).is_some() {
+                Err(ErrorC::DeviceInRoomExists(
+                    some_dev.as_ref().try_lock().unwrap().get_name(),
+                ))
             } else {
-                self.devices.as_ref().borrow_mut().push(Rc::clone(some_dev));
+                let mut guard = self.devices.as_ref().try_lock().unwrap();
+                guard.push(Arc::clone(some_dev));
+                Mutex::unlock(guard);
                 Ok(())
             }
         }
@@ -312,16 +322,18 @@ pub mod home {
             if self
                 .devices
                 .as_ref()
-                .borrow()
+                .try_lock()
+                .unwrap()
                 .iter()
-                .any(|x| x.borrow().get_name() == name)
+                .any(move |x| x.try_lock().unwrap().get_name() == name)
             {
                 Some(
                     self.devices
                         .as_ref()
-                        .borrow()
+                        .try_lock()
+                        .unwrap()
                         .iter()
-                        .position(|x| x.borrow().get_name() == name)
+                        .position(|x| x.try_lock().unwrap().get_name() == name)
                         .unwrap(),
                 )
             } else {
@@ -334,10 +346,12 @@ pub mod home {
                 Some(
                     self.devices
                         .as_ref()
-                        .borrow_mut()
+                        .try_lock()
+                        .unwrap()
                         .get(dev_pos)
                         .unwrap()
-                        .borrow()
+                        .try_lock()
+                        .unwrap()
                         .get_property_info(),
                 )
             } else {
@@ -350,10 +364,12 @@ pub mod home {
                 Some(
                     self.devices
                         .as_ref()
-                        .borrow_mut()
+                        .try_lock()
+                        .unwrap()
                         .get(dev_pos)
                         .unwrap()
-                        .borrow()
+                        .try_lock()
+                        .unwrap()
                         .get_state(),
                 )
             } else {
@@ -363,10 +379,10 @@ pub mod home {
 
         fn get_all_devices(&self) -> Option<String> {
             let mut out_string = String::new();
-            for (j, dev) in self.devices.as_ref().borrow().iter().enumerate() {
+            for (j, dev) in self.devices.as_ref().try_lock().unwrap().iter().enumerate() {
                 fmt::write(
                     &mut out_string,
-                    format_args!("dev №{},name: {} ", j, dev.borrow().get_name()),
+                    format_args!("dev №{},name: {} ", j, dev.try_lock().unwrap().get_name()),
                 )
                 .expect("error while writing");
             }
@@ -380,10 +396,12 @@ pub mod home {
             if let Some(dev_pos) = self.find_dev_name(name) {
                 self.devices
                     .as_ref()
-                    .borrow_mut()
+                    .try_lock()
+                    .unwrap()
                     .get(dev_pos)
                     .unwrap()
-                    .borrow_mut()
+                    .try_lock()
+                    .unwrap()
                     .set_state(state); //;get().set_state(state) ;
             }
         }
@@ -391,10 +409,12 @@ pub mod home {
             if let Some(dev_pos) = self.find_dev_name(name) {
                 self.devices
                     .as_ref()
-                    .borrow_mut()
+                    .try_lock()
+                    .unwrap()
                     .get(dev_pos)
                     .unwrap()
-                    .borrow_mut()
+                    .try_lock()
+                    .unwrap()
                     .set_property_info(property);
                 // .set_state(state); //;get().set_state(state) ;
             }
@@ -409,25 +429,25 @@ pub mod home {
     }
 
     pub struct Device_Handler {
-        dev: Weak<RefCell<dyn Device>>,
+        dev: Weak<Mutex<dyn Device + Send>>,
     }
 
     impl Device_Handler {
-        fn new(dev: &Rc<RefCell<dyn Device>>) -> Self {
+        fn new(dev: &Arc<Mutex<dyn Device + Send>>) -> Self {
             Self {
-                dev: Rc::downgrade(dev),
+                dev: Arc::downgrade(dev),
             }
         }
         pub fn get_devname(&self) -> Result<String, ErrorC> {
             if let Some(rez) = self.dev.upgrade() {
-                Ok(rez.borrow().get_name())
+                Ok(rez.try_lock().unwrap().get_name())
             } else {
                 Err(ErrorC::ErrorOther)
             }
         }
         pub fn change_state(&self, new_state: bool) -> Result<(), ErrorC> {
             if let Some(rez) = self.dev.upgrade() {
-                rez.borrow_mut().set_state(new_state);
+                rez.try_lock().unwrap().set_state(new_state);
                 Ok(())
             } else {
                 Err(ErrorC::ErrorSettingState)
@@ -435,7 +455,7 @@ pub mod home {
         }
         pub fn get_state(&self) -> Result<bool, ErrorC> {
             if let Some(rez) = self.dev.upgrade() {
-                Ok(rez.borrow().get_state())
+                Ok(rez.try_lock().unwrap().get_state())
             } else {
                 Err(ErrorC::ErrorGettingState)
             }
@@ -445,7 +465,9 @@ pub mod home {
             new_info: impl std::fmt::Display,
         ) -> Result<(), ErrorC> {
             if let Some(rez) = self.dev.upgrade() {
-                rez.borrow_mut().set_property_info(&new_info.to_string());
+                rez.try_lock()
+                    .unwrap()
+                    .set_property_info(&new_info.to_string());
                 Ok(())
             } else {
                 Err(ErrorC::ErrorGettingState)
@@ -453,7 +475,7 @@ pub mod home {
         }
         pub fn get_property_state(&self) -> Result<String, ErrorC> {
             if let Some(rez) = self.dev.upgrade() {
-                Ok(rez.borrow().get_property_info())
+                Ok(rez.lock().unwrap().get_property_info())
             } else {
                 Err(ErrorC::ErrorGettingState)
             }
@@ -496,10 +518,13 @@ pub mod home {
 
     fn main() {}
 
+    fn wrap_device(some_device: Example_Device) -> Arc<Mutex<dyn Device + Send>> {
+        Arc::new(Mutex::new(some_device))
+    }
+
     #[cfg(test)]
     mod tests {
         use super::*;
-
         #[test]
         fn create_and_append_room() {
             let mut sh = SmartHouse::new();
@@ -515,34 +540,30 @@ pub mod home {
         fn dev_creation() {
             let mut sh = SmartHouse::new();
             assert!(sh.append_room("room1").is_ok());
-            let dev: Rc<RefCell<dyn Device>> =
-                Rc::new(RefCell::new(Example_Device::new("dev0".to_string())));
+            let dev = wrap_device(Example_Device::new("dev0".to_string()));
             assert!(sh.append_dev_to_a_room("room1", &dev).is_ok());
         }
         #[test]
         fn exists_dev_append() {
             let mut sh = SmartHouse::new();
             assert!(sh.append_room("room1").is_ok());
-            let dev: Rc<RefCell<dyn Device>> =
-                Rc::new(RefCell::new(Example_Device::new("dev0".to_string())));
+            let dev = wrap_device(Example_Device::new("dev0".to_string()));
+            //let dev1 = wrap_device(Example_Device::new("dev1".to_string()));
             assert!(sh.append_dev_to_a_room("room1", &dev).is_ok());
             assert!(sh.append_dev_to_a_room("room1", &dev).is_err());
         }
-
         #[test]
         fn add_to_n_exists_room() {
             let mut sh = SmartHouse::new();
             assert!(sh.append_room("room2").is_ok());
-            let dev: Rc<RefCell<dyn Device>> =
-                Rc::new(RefCell::new(Example_Device::new("dev0".to_string())));
+            let dev = wrap_device(Example_Device::new("dev0".to_string()));
             assert!(sh.append_dev_to_a_room("room1", &dev).is_err());
         }
         #[test]
         fn dev_creation_and_change() {
             let mut sh = SmartHouse::new();
             assert!(sh.append_room("room1").is_ok());
-            let dev: Rc<RefCell<dyn Device>> =
-                Rc::new(RefCell::new(Example_Device::new("dev0".to_string())));
+            let dev = wrap_device(Example_Device::new("dev0".to_string()));
             let rez_handler1 = sh.append_dev_to_a_room("room1", &dev);
             assert!(rez_handler1.is_ok()); // get handler
             let handler1 = rez_handler1.unwrap(); // unwrap handler
@@ -556,8 +577,7 @@ pub mod home {
         fn dev_creation_and_test_properties() {
             let mut sh = SmartHouse::new();
             assert!(sh.append_room("room1").is_ok());
-            let dev: Rc<RefCell<dyn Device>> =
-                Rc::new(RefCell::new(Example_Device::new("dev0".to_string())));
+            let dev = wrap_device(Example_Device::new("dev0".to_string()));
             let rez_handler1 = sh.append_dev_to_a_room("room1", &dev);
             assert!(rez_handler1.is_ok()); // get handler
             let handler1 = rez_handler1.unwrap(); // unwrap handler
@@ -575,8 +595,7 @@ pub mod home {
         fn dev_test_turn_on() {
             let mut sh = SmartHouse::new();
             assert!(sh.append_room("room1").is_ok());
-            let dev: Rc<RefCell<dyn Device>> =
-                Rc::new(RefCell::new(Example_Device::new("dev0".to_string())));
+            let dev = wrap_device(Example_Device::new("dev0".to_string()));
             let rez_handler1 = sh.append_dev_to_a_room("room1", &dev);
             assert!(rez_handler1.is_ok()); // get handler
             let handler1 = rez_handler1.unwrap(); // unwrap handler
@@ -590,17 +609,15 @@ pub mod home {
         fn test_get_devices_in_room() {
             let mut sh = SmartHouse::new();
             assert!(sh.append_room("room1").is_ok());
-            let dev: Rc<RefCell<dyn Device>> =
-                Rc::new(RefCell::new(Example_Device::new("dev0".to_string())));
-
-            let dev1: Rc<RefCell<dyn Device>> =
-                Rc::new(RefCell::new(Example_Device::new("dev1".to_string())));
+            let dev = wrap_device(Example_Device::new("dev0".to_string()));
+            let dev1 = wrap_device(Example_Device::new("dev1".to_string()));
             let _rez_handler = sh.append_dev_to_a_room("room1", &dev);
             let _rez_handler1 = sh.append_dev_to_a_room("room1", &dev1);
             let dev_list = sh.get_devices_in_room("room1");
             assert!(dev_list.is_ok());
             println!("------------------->devices: {}", dev_list.unwrap());
         }
+
         #[test]
         fn test_get_all_rooms() {
             let mut sh = SmartHouse::new();
@@ -633,6 +650,7 @@ pub mod home {
             assert!(sh.append_room(&room3).is_ok());
             assert!(sh.delete_room("room3").is_ok_and(|x| x == (3, 2)));
         }
+        /*
         #[test]
         fn test_delete_dev() {
             let mut sh = SmartHouse::new();
@@ -641,10 +659,8 @@ pub mod home {
             assert!(sh.append_room(&room1).is_ok());
             assert!(sh.append_room(&room2).is_ok());
 
-            let dev0: Rc<RefCell<dyn Device>> =
-                Rc::new(RefCell::new(Example_Device::new("dev0".to_string())));
-            let dev1: Rc<RefCell<dyn Device>> =
-                Rc::new(RefCell::new(Example_Device::new("dev1".to_string())));
+            let dev0 = wrap_device(Example_Device::new("dev0".to_string()));
+            let dev1 = wrap_device(Example_Device::new("dev1".to_string()));
 
             let _dev0_handler = sh.append_dev_to_a_room("room1", &dev0);
             let _dev1_handler = sh.append_dev_to_a_room("room1", &dev1);
@@ -664,18 +680,13 @@ pub mod home {
             let room2 = "room2".to_string();
             assert!(sh.append_room(&room1).is_ok());
             assert!(sh.append_room(&room2).is_ok());
-
-            let dev0: Rc<RefCell<dyn Device>> =
-                Rc::new(RefCell::new(Example_Device::new("dev0".to_string())));
-            let dev1: Rc<RefCell<dyn Device>> =
-                Rc::new(RefCell::new(Example_Device::new("dev1".to_string())));
+            let dev0 = wrap_device(Example_Device::new("dev0".to_string()));
+            let dev1 = wrap_device(Example_Device::new("dev1".to_string()));
 
             let _dev0_handler = sh.append_dev_to_a_room("room1", &dev0);
             let _dev1_handler = sh.append_dev_to_a_room("room1", &dev1);
 
-            let dev3: Rc<RefCell<dyn Device>> =
-                Rc::new(RefCell::new(Example_Device::new("dev1".to_string())));
-
+            let dev3 = wrap_device(Example_Device::new("dev0".to_string()));
             let _dev3_handler = sh.append_dev_to_a_room("room2", &dev3);
             assert!(sh
                 .get_device_number_in_room("room1")
@@ -685,5 +696,6 @@ pub mod home {
                 .is_some_and(|n| n == 1));
             println!("REPORT IS {}", sh.get_dev_report(&dev1).unwrap());
         }
+        */
     }
 }

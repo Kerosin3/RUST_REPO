@@ -4,11 +4,12 @@
 use lib_shouse::home::home::home::Device;
 use std::sync::atomic::{AtomicUsize, Ordering};
 static TERMOMETER_SERIAL: AtomicUsize = AtomicUsize::new(0);
+use std::sync::Mutex;
 
 pub struct Termometer {
     name: String,
     state: bool,
-    temperature: f32,
+    temperature: Mutex<f32>,
 }
 
 impl Termometer {
@@ -24,12 +25,12 @@ impl Termometer {
             ]
             .concat(),
             state: false,
-            temperature: 0.0,
+            temperature: Mutex::new(0.0_f32),
         };
         out
     }
     fn set_temperature(&mut self, temperature: f32) {
-        self.temperature = temperature;
+        *self.temperature.lock().unwrap() = temperature;
     }
 }
 
@@ -44,9 +45,13 @@ impl Device for Termometer {
         self.state
     }
     fn get_property_info(&self) -> String {
-        format!("current temperature is {}", self.temperature)
+        format!(
+            "current temperature is {}",
+            self.temperature.lock().unwrap()
+        )
     }
     fn set_property_info(&mut self, new_info: &dyn std::fmt::Display) {
-        self.temperature = new_info.to_string().parse::<f32>().unwrap();
+        let n_val = new_info.to_string().parse::<f32>().unwrap();
+        *self.temperature.try_lock().unwrap() = n_val;
     }
 }

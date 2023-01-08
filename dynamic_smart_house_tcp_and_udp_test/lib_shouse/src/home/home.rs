@@ -156,10 +156,8 @@ pub mod home {
         }
         pub fn test_whether_room_exists(&self, a_room: &str) -> Option<usize> {
             if self.rooms.iter().any(|x| x.get_room_name() == a_room) {
-                println!("here11");
                 self.rooms.iter().position(|x| x.get_room_name() == a_room)
             } else {
-                println!("here");
                 None
             }
         }
@@ -304,7 +302,7 @@ pub mod home {
                 .find_dev_name(some_dev.try_lock().unwrap().get_name().as_ref())
                 .is_some()
             {
-                Err(ErrorC::DeviceInRoomExists("dasda".to_string()))
+                Err(ErrorC::DeviceInRoomExists( some_dev.as_ref().try_lock().unwrap().get_name() ))
             } else {
                 let mut guard = self.devices.as_ref().try_lock().unwrap();
                 guard.push(Arc::clone(some_dev));

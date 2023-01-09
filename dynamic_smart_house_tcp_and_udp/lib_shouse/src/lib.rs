@@ -1,4 +1,5 @@
 #![feature(associated_type_defaults)]
+#![allow(non_camel_case_types)]
 #![feature(mutex_unlock)]
 #![feature(is_some_and)]
 #[allow(unused_imports)]

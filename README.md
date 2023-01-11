@@ -1,1 +1,0 @@
-#Otus RUST homeworks

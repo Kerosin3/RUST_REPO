@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+#![allow(unused_imports)]
 use serde::{Deserialize, Serialize};
 mod args;
 use args::ClientArgs;
@@ -8,11 +10,13 @@ use bytes::Bytes;
 use futures::sink::SinkExt;
 use futures_util::*;
 use ipc_message::*;
+use std::time::Duration;
+use tokio::time::timeout;
 //use socket2::{Domain, Protocol, SockRef, Socket, Type};
 use tokio::{io::BufStream, net::TcpStream};
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 
-static SERVER_HELLO: &'static str = "hello from server, what do you want?";
+static SERVER_HELLO: &str = "hello from server, what do you want?";
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
@@ -32,10 +36,14 @@ async fn main() {
     message_to_server.assign_devname(args.devname);
     println!("devname: {}", message_to_server.devname);
     let msg = message_to_server.serialize_message();
-    let stream = TcpStream::connect("127.0.0.1:12345").await.unwrap();
-    tokio::spawn(async move { client_process(stream, msg).await })
-        .await
-        .unwrap();
+    if let Ok(stream) = TcpStream::connect("127.0.0.1:12345").await {
+        tokio::spawn(async move { client_process(stream, msg).await })
+            .await
+            .unwrap();
+    } else {
+        println!("cant connect to server, exiting!");
+        std::process::exit(1);
+    }
 }
 
 async fn client_process(stream: TcpStream, msg: Vec<u8>) {
@@ -56,19 +64,19 @@ async fn client_process(stream: TcpStream, msg: Vec<u8>) {
         match frame {
             Ok(f) => {
                 if loop_n == 0 {
-                    if String::from_utf8_lossy(&f.to_vec()) != SERVER_HELLO {
+                    if String::from_utf8_lossy(&f) != SERVER_HELLO {
                         return; // not valid greet
                     }
                     let frame = Bytes::from("client magic words!");
                     framed_stream.send(frame).await.unwrap();
                     loop_n += 1;
                 } else {
-                    println!("readed frame: {:?}", f);
-                    if String::from_utf8_lossy(&f.to_vec()) == "ASK" {
+                    if String::from_utf8_lossy(&f) == "ASK" {
                         let frame: Bytes = Bytes::from(msg.to_owned()); //ok..
-                        println!("send serialized");
+                                                                        //println!("send serialized");
                         framed_stream.send(frame).await.unwrap();
                     } else {
+                        println!("INFO FROM SERVER: {}", String::from_utf8_lossy(&f));
                         return;
                     }
                     loop_n += 1;

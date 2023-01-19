@@ -1,18 +1,17 @@
-use anyhow::{anyhow, Result};
+use anyhow::anyhow;
 use bytes::Bytes;
-use thiserror::Error;
-//use server_shouse::udp_termo_data_server::udp_termo_server;
-//use server_shouse::update_termometer_client::run_termo_quering;
-//use socket2::{Domain, Protocol, SockRef, Socket, Type};
 use futures::SinkExt;
 use futures_util::*;
+use rand::rngs::StdRng;
+use rand::{Rng, SeedableRng};
 use socket2::SockRef;
-use std::sync::Arc;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
+use thiserror::Error;
 use tokio::io::BufStream;
 use tokio::net::{TcpListener, TcpStream};
-use tokio_util::codec::{Framed, LengthDelimitedCodec};
 //use tokio::sync::Mutex;
+use tokio::time::{sleep, Duration};
+use tokio_util::codec::{Framed, LengthDelimitedCodec};
 mod ipc_message;
 use ipc_message::*;
 mod server_socket_struct;
@@ -20,10 +19,22 @@ mod server_termometer_struct;
 use lib_shouse::home::home::home::*;
 use server_socket_struct::*;
 use server_termometer_struct::*;
-//type customtype = Arc<Mutex<HashMap<String, Bytes>>>;
+use tokio::time::timeout;
+use tracing::Level;
+use tracing_subscriber;
+use tracing_subscriber::fmt;
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 3)]
 async fn main() -> anyhow::Result<()> {
+    let subscriber = fmt()
+        .compact()
+        //        .with_line_number(true) ?? not find
+        .with_thread_ids(true)
+        .with_target(false)
+        .with_max_level(Level::INFO)
+        .finish();
+    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+    tracing::info!("start main server loop");
     let mut some_house = SmartHouse::new();
     let room_0 = "room_0".to_string();
     some_house.append_room(&room_0).unwrap();
@@ -33,16 +44,31 @@ async fn main() -> anyhow::Result<()> {
     let _dev1_handler = some_house.append_dev_to_a_room(&room_0, &dev1).unwrap(); // append dev1 to room0
     _dev0_handler.property_change_state(9000_f32).unwrap();
     _dev1_handler.property_change_state(36.6_f32).unwrap();
+    tracing::info!(
+        "added device:{} to server",
+        _dev0_handler.get_devname().unwrap()
+    );
+    tracing::info!(
+        "added device:{} to server",
+        _dev1_handler.get_devname().unwrap()
+    );
+
     //-----------------event_loop-------------------
     let wrap_home = Arc::new(Mutex::new(some_house));
     //tokio::spawn(async move { handle_connection(socket, sh).await });
     let mut handlers = vec![];
+    tokio::spawn(async move { imitate_socket_power_change(_dev0_handler).await }); // change dev0
+    tokio::spawn(async move { imitate_termo_data_achange(_dev1_handler).await }); // change dev1
+                                                                                  // property
     if let Ok(tcp_listener) = TcpListener::bind("127.0.0.1:12345").await {
         while let Ok((tcp_stream, _socket_addr)) = tcp_listener.accept().await {
             let sh = Arc::clone(&wrap_home);
             let handle = tokio::spawn(async move {
                 // -----------------------------SPAWN TASK--------------------------------------
-                server_event_loop(tcp_stream, sh).await
+                timeout(Duration::from_secs(1), server_event_loop(tcp_stream, sh))
+                    .await
+                    .unwrap()
+                    .unwrap();
             });
             handlers.push(handle);
         }
@@ -50,18 +76,41 @@ async fn main() -> anyhow::Result<()> {
         println!("error server binding");
     }
     for h in handlers {
-        // not working
+        // not working??
         match h.await {
             Ok(_) => println!("task finished ok!"),
-            Err(e) => println!("task finished with error {:?}", e),
+            Err(e) => {
+                println!("task finished with error {e}");
+                tracing::error!("cant join task {e}");
+            }
         }
     }
     Ok(())
+}
+async fn imitate_socket_power_change(handle: Device_Handler) {
+    let mut rng: StdRng = SeedableRng::from_entropy();
+    loop {
+        handle
+            .property_change_state(rng.gen_range(1000..5000))
+            .unwrap();
+        sleep(Duration::from_millis(100)).await;
+    }
+}
+async fn imitate_termo_data_achange(handle: Device_Handler) {
+    let mut rng: StdRng = SeedableRng::from_entropy();
+    loop {
+        handle.property_change_state(rng.gen_range(30..90)).unwrap();
+        sleep(Duration::from_millis(100)).await;
+    }
 }
 async fn server_event_loop(
     tcp_stream: TcpStream,
     sm_obj: Arc<Mutex<SmartHouse>>,
 ) -> anyhow::Result<()> {
+    tracing::info!(
+        "initialized server connection with {}",
+        tcp_stream.peer_addr().unwrap()
+    );
     let socket_ref = SockRef::from(&tcp_stream);
     socket_ref.set_nonblocking(true)?;
     socket_ref.set_nodelay(true).unwrap();
@@ -79,6 +128,7 @@ async fn server_event_loop(
     let stream_buf = BufStream::new(tcp_stream);
     let mut framed_stream = Framed::new(stream_buf, codec);
     let frame = Bytes::from("hello from server, what do you want?");
+    tracing::info!("sent hello to client");
     framed_stream.send(frame).await.unwrap();
     // INFINITE LOOP!
     let mut i = 0_usize;
@@ -86,25 +136,26 @@ async fn server_event_loop(
         match frame {
             Ok(f) => {
                 if i == 0 {
-                    println!("readed 0 frame: {:?}", f);
-                    if String::from_utf8_lossy(&f.to_vec()) == "client magic words!" {
+                    tracing::info!("zero frame: {f:?}");
+                    if String::from_utf8_lossy(&f) == "client magic words!" {
                         let frame = Bytes::from("ASK");
                         framed_stream.send(frame).await?;
-                        println!("server sent ask");
+                        tracing::info!("sent akn to client");
                     } else {
-                        println!("wrong answer");
+                        tracing::error!("wrong key phrase from client");
                         anyhow::bail!(HandleError::KeyError) // wrong answer
                     }
                     i += 1;
                 } else {
                     //--------------------------------------------------------------------//
                     //PROCESS INFO MESSAGE!
-                    println!("readed frame: {:?}", f);
+                    //println!("readed frame: {f:?}");
                     i += 1;
-                    let msg_from_client: Message = Message::deserialize_message(&f.to_vec());
+                    let msg_from_client: Message = Message::deserialize_message(&f);
                     let dev_name = msg_from_client.devname;
                     let room_dev = match sm_obj.try_lock() {
                         Err(_) => {
+                            tracing::error!("error locking mutex");
                             anyhow::bail!(HandleError::MutexError(anyhow!("error locking mutex")))
                         }
                         Ok(guard) => guard.test_whether_a_dev_exists(&dev_name),
@@ -113,9 +164,10 @@ async fn server_event_loop(
                     message_to_client.assign_devname(dev_name.to_owned());
                     message_to_client.assign_command(Command::MsgBack);
                     let (room_name_found, dev_name_found) = if room_dev.is_some() {
-                        println!("found valid dev! {}", &dev_name);
+                        tracing::info!("found valid dev {dev_name}");
                         room_dev.unwrap()
                     } else {
+                        tracing::error!("not valid device found, aborting connection");
                         let msg_back = format!("devname:{} not found", &dev_name);
                         framed_stream.send(Bytes::from(msg_back)).await?;
                         anyhow::bail!(HandleError::NoSuchDeviceExists)
@@ -129,6 +181,7 @@ async fn server_event_loop(
                                 (&room_name_found, &dev_name_found),
                             )
                             .await?; //works?
+                            info_property.push_str("device is turned ON");
                         }
                         Command::TurnOff => {
                             modify_house(
@@ -137,6 +190,7 @@ async fn server_event_loop(
                                 (&room_name_found, &dev_name_found),
                             )
                             .await?; //works?
+                            info_property.push_str("device is turned OFF");
                         }
                         Command::GetProperty => {
                             info_property = modify_house(
@@ -154,15 +208,18 @@ async fn server_event_loop(
                     // write answer
                     let frame = Bytes::from(info_property);
                     framed_stream.send(frame).await.unwrap();
+                    tracing::info!("sended information back!");
                     return Ok(()); //run once
                 }
             }
             Err(_) => {
+                tracing::error!("cant process framing operation");
                 anyhow::bail!(HandleError::FrameError) // cannot read from socket
             }
         }
     }
-    return anyhow::bail!(HandleError::WrongSeq); // }
+    tracing::error!("cant call next method on frame");
+    anyhow::bail!(HandleError::WrongSeq)
 }
 
 fn wrap_device<T: 'static + lib_shouse::home::home::home::Device + Send + Sync>(

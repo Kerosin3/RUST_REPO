@@ -24,7 +24,6 @@ impl SmartSocket {
             state: false,
             consum_power: 0.0,
         };
-        println!("created device:{}", out.name);
         out
     }
     pub fn set_cons_power(&mut self, temp: f32) {

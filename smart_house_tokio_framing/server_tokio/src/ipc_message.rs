@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+#![allow(unused_imports)]
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use serde::{Deserialize, Serialize};
 
@@ -42,12 +44,12 @@ impl Message {
         self.devname = devname;
     }
     pub fn serialize_message(&self) -> Vec<u8> {
-        return bincode::serialize(&self).unwrap();
+        bincode::serialize(&self).unwrap()
     }
     pub fn assign_info(&mut self, info: String) {
         self.info = Some(info);
     }
-    pub fn deserialize_message(buf: &Vec<u8>) -> Self {
+    pub fn deserialize_message(buf: &[u8]) -> Self {
         let out: Message = bincode::deserialize(buf).unwrap();
         out
     }

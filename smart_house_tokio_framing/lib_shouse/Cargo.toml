@@ -8,3 +8,6 @@ edition = "2021"
 [dependencies]
 thiserror = "*"
 tokio = { version = "*", features = ["full"] }
+anyhow = "*"
+futures = "*"
+futures-util = "0.3"

@@ -1,5 +1,6 @@
+#![allow(dead_code)]
+#![allow(unused_imports)]
 use clap::{Args, Parser, Subcommand};
-
 #[derive(Debug, Parser)]
 #[clap(author, version, about)]
 pub struct ClientArgs {
@@ -10,7 +11,12 @@ pub struct ClientArgs {
     #[arg(short = 'e')]
     pub enable: Option<bool>,
 }
+fn main() {} // ????
+
 /*
+ *
+ *
+ *
  *
 #[clap(subcommand)]
 #[derive(Debug,Subcommand)]

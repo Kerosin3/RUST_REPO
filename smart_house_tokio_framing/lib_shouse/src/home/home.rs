@@ -6,6 +6,8 @@ pub mod home {
     use std::cell::RefCell;
     use std::fmt;
     use std::sync::{Arc, Mutex, RwLock, Weak};
+    use std::time::Duration;
+    use tokio::time::{sleep, timeout};
     #[derive(thiserror::Error, Debug, Clone)]
     #[non_exhaustive]
     pub enum ErrorC {
@@ -88,7 +90,20 @@ pub mod home {
             }
             None
         }
-
+        /*
+        pub async fn asy_test_whether_a_dev_exists(
+            &self,
+            dev_name: &str,
+        ) -> anyhow::Result<Option<(String, String)>> {
+            let timeout_t = tokio::time::Duration::from_millis(50);
+            //let d_mtx = tokio::sync::Mutex::new(self.test_whether_a_dev_existsev_name));
+            //            if let Ok(v) = timeout(timeout_t, d_mtx.try_lock().await).await {
+            if let Err(_) = timeout(timeout_t, sleep(Duration::from_millis(20))).await {
+                anyhow::bail!("error processing lib async operation")
+            }
+            Ok(Some(("dasda".to_string(), "kakeke".to_string())))
+        }
+        */
         pub fn get_dev_report(&self, a_device: &Arc<Mutex<dyn Device>>) -> Option<String> {
             let mut out_str = String::new();
             let dev_name = a_device.try_lock().unwrap().get_name();
@@ -234,11 +249,11 @@ pub mod home {
         }
         pub fn get_device_property(&self, devname: &str) -> Result<String, ErrorC> {
             for (_i, room) in self.rooms.iter().enumerate() {
-                println!(
+                /*println!(
                     "devices:{}, looking for {}",
                     room.get_all_devices().unwrap(),
                     devname
-                );
+                );*/
                 if let Some(dev_pos) = room.find_dev_name(devname) {
                     return Ok(self
                         .rooms
@@ -567,11 +582,11 @@ pub mod home {
             let rez_handler1 = sh.append_dev_to_a_room("room1", &dev);
             assert!(rez_handler1.is_ok()); // get handler
             let handler1 = rez_handler1.unwrap(); // unwrap handler
-            assert!(handler1.get_state().is_ok_and(|rez| rez == false));
+            assert!(handler1.get_state().is_ok_and(|rez| !rez));
             assert!(handler1.change_state(true).is_ok());
-            assert!(handler1.get_state().is_ok_and(|rez| rez == true));
+            assert!(handler1.get_state().is_ok_and(|rez| rez));
             assert!(sh.change_dev_state_in_room("room1", "dev0", false).is_ok());
-            assert!(handler1.get_state().is_ok_and(|rez| rez == false));
+            assert!(handler1.get_state().is_ok_and(|rez| !rez));
         }
         #[test]
         fn dev_creation_and_test_properties() {
@@ -581,11 +596,11 @@ pub mod home {
             let rez_handler1 = sh.append_dev_to_a_room("room1", &dev);
             assert!(rez_handler1.is_ok()); // get handler
             let handler1 = rez_handler1.unwrap(); // unwrap handler
-            assert!(handler1.get_state().is_ok_and(|rez| rez == false));
+            assert!(handler1.get_state().is_ok_and(|rez| !rez));
             assert!(handler1.change_state(true).is_ok());
-            assert!(handler1.get_state().is_ok_and(|rez| rez == true));
+            assert!(handler1.get_state().is_ok_and(|rez| rez));
             assert!(sh.change_dev_state_in_room("room1", "dev0", false).is_ok());
-            assert!(handler1.get_state().is_ok_and(|rez| rez == false));
+            assert!(handler1.get_state().is_ok_and(|rez| !rez));
             println!(
                 "--------------------------->{}",
                 handler1.get_property_state().unwrap()
@@ -599,11 +614,11 @@ pub mod home {
             let rez_handler1 = sh.append_dev_to_a_room("room1", &dev);
             assert!(rez_handler1.is_ok()); // get handler
             let handler1 = rez_handler1.unwrap(); // unwrap handler
-            assert!(handler1.get_state().is_ok_and(|rez| rez == false));
+            assert!(handler1.get_state().is_ok_and(|rez| !rez));
             assert!(handler1.change_state(true).is_ok());
-            assert!(handler1.get_state().is_ok_and(|rez| rez == true));
+            assert!(handler1.get_state().is_ok_and(|rez| rez));
             assert!(sh.change_dev_state_in_room("room1", "dev0", false).is_ok());
-            assert!(handler1.get_state().is_ok_and(|rez| rez == false));
+            assert!(handler1.get_state().is_ok_and(|rez| !rez));
         }
         #[test]
         fn test_get_devices_in_room() {

@@ -55,8 +55,6 @@ async fn main() -> anyhow::Result<()> {
 
     //-----------------event_loop-------------------
     let wrap_home = Arc::new(Mutex::new(some_house));
-    //tokio::spawn(async move { handle_connection(socket, sh).await });
-    let mut handlers = vec![];
     tokio::spawn(async move { imitate_socket_power_change(_dev0_handler).await }); // change dev0
     tokio::spawn(async move { imitate_termo_data_achange(_dev1_handler).await }); // change dev1
                                                                                   // property
@@ -65,25 +63,23 @@ async fn main() -> anyhow::Result<()> {
             let sh = Arc::clone(&wrap_home);
             let handle = tokio::spawn(async move {
                 // -----------------------------SPAWN TASK--------------------------------------
-                timeout(Duration::from_secs(1), server_event_loop(tcp_stream, sh))
-                    .await
-                    .unwrap()
-                    .unwrap();
+                timeout(Duration::from_secs(1), server_event_loop(tcp_stream, sh)).await
             });
-            handlers.push(handle);
-        }
-    } else {
-        println!("error server binding");
-    }
-    for h in handlers {
-        // not working??
-        match h.await {
-            Ok(_) => println!("task finished ok!"),
-            Err(e) => {
-                println!("task finished with error {e}");
-                tracing::error!("cant join task {e}");
+            // anylyze task rezults
+            match handle.await.unwrap() {
+                Ok(v) => {
+                    tracing::info!("finished a task with no timeout");
+                    match v {
+                        Ok(_) => tracing::info!("task processed successfully!"),
+                        Err(e) => tracing::error!("error while task execution:{}", e),
+                    }
+                }
+                Err(e) => tracing::error!("error while executing the task: {e}"),
             }
         }
+    } else {
+        tracing::error!("cant bind server!");
+        std::process::exit(1);
     }
     Ok(())
 }
@@ -194,14 +190,12 @@ async fn server_event_loop(
                         }
                         Command::GetProperty => {
                             info_property = modify_house(
-                                // shadows??
                                 &sm_obj,
                                 Command::GetProperty,
                                 (&room_name_found, &dev_name_found),
                             )
                             .await?;
                             message_to_client.assign_info(info_property.to_owned());
-                            //assign msg
                         }
                         Command::MsgBack => todo!(),
                     }
@@ -209,6 +203,7 @@ async fn server_event_loop(
                     let frame = Bytes::from(info_property);
                     framed_stream.send(frame).await.unwrap();
                     tracing::info!("sended information back!");
+                    tracing::info!("-----------compliting the task!------------");
                     return Ok(()); //run once
                 }
             }

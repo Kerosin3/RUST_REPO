@@ -61,21 +61,22 @@ async fn main() -> anyhow::Result<()> {
     if let Ok(tcp_listener) = TcpListener::bind("127.0.0.1:12345").await {
         while let Ok((tcp_stream, _socket_addr)) = tcp_listener.accept().await {
             let sh = Arc::clone(&wrap_home);
-            let handle = tokio::spawn(async move {
+            tokio::spawn(async move {
                 // -----------------------------SPAWN TASK--------------------------------------
-                timeout(Duration::from_secs(1), server_event_loop(tcp_stream, sh)).await
-            });
-            // anylyze task rezults
-            match handle.await.unwrap() {
-                Ok(v) => {
-                    tracing::info!("finished a task with no timeout");
-                    match v {
-                        Ok(_) => tracing::info!("task processed successfully!"),
-                        Err(e) => tracing::error!("error while task execution:{}", e),
+                let handle =
+                    timeout(Duration::from_secs(5), server_event_loop(tcp_stream, sh)).await;
+                // anylyze task rezults
+                match handle {
+                    Ok(v) => {
+                        tracing::info!("finished a task with no timeout");
+                        match v {
+                            Ok(_) => tracing::info!("task processed successfully!"),
+                            Err(e) => tracing::error!("error while task execution:{}", e),
+                        }
                     }
+                    Err(e) => tracing::error!("error while executing the task: {e}"),
                 }
-                Err(e) => tracing::error!("error while executing the task: {e}"),
-            }
+            });
         }
     } else {
         tracing::error!("cant bind server!");

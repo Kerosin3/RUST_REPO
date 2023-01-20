@@ -280,3 +280,19 @@ pub enum HandleError {
     #[error(transparent)]
     MutexError(anyhow::Error),
 }
+
+#[cfg(test)]
+mod tests {
+    #[tokio::test]
+    async fn test_something_async() {
+        let output = std::process::Command::new("sh")
+            .arg("-c")
+            .arg("echo hello command")
+            .output()
+            .expect("error command");
+        println!("status: {}", output.status);
+        println!("stdout: {}", String::from_utf8_lossy(&output.stdout));
+        println!("stderr: {}", String::from_utf8_lossy(&output.stderr));
+        assert!(output.status.success());
+    }
+}

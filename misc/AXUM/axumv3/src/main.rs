@@ -2,12 +2,13 @@
 #![allow(unused_imports)]
 use axum::{
     async_trait,
-    extract::{Query, State},
-    http::StatusCode,
+    extract::{FromRequest, Query, State},
+    handler::Handler,
+    http::{header::CONTENT_TYPE, Request, StatusCode, Uri},
     middleware::{self, Next},
-    response::IntoResponse,
-    routing::get,
-    Json, Router,
+    response::{IntoResponse, Response},
+    routing::{get, post},
+    Form, Json, RequestExt, Router,
 };
 use axum_macros::debug_handler;
 #[cfg(test)]
@@ -40,17 +41,81 @@ async fn main() {
     tracing::info!("start main server loop");
 
     let app = Router::new()
+        .fallback(fallback)
         .nest("/heroes", heroes_routes())
-        .with_state(repo);
+        .with_state(repo)
+        .route("/hello", get(hello_html))
+        .route("/test", get(test_html))
+        .route("/", post(handler));
 
     // Start the server. Note that for brevity, we do not add logging, graceful shutdown, etc.
     let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
+        .with_graceful_shutdown(shutdown_signal())
         .await
         .unwrap();
 }
+struct JsonOrForm<T>(T);
 
+#[async_trait]
+impl<S, B, T> FromRequest<S, B> for JsonOrForm<T>
+where
+    B: Send + 'static,
+    S: Send + Sync,
+    Json<T>: FromRequest<(), B>,
+    Form<T>: FromRequest<(), B>,
+    T: 'static,
+{
+    type Rejection = Response;
+
+    async fn from_request(req: Request<B>, _state: &S) -> Result<Self, Self::Rejection> {
+        let content_type_header = req.headers().get(CONTENT_TYPE);
+        let content_type = content_type_header.and_then(|value| value.to_str().ok());
+
+        if let Some(content_type) = content_type {
+            if content_type.starts_with("application/json") {
+                let Json(payload) = req.extract().await.map_err(IntoResponse::into_response)?;
+                return Ok(Self(payload));
+            }
+
+            if content_type.starts_with("application/x-www-form-urlencoded") {
+                let Form(payload) = req.extract().await.map_err(IntoResponse::into_response)?;
+                return Ok(Self(payload));
+            }
+        }
+
+        Err(StatusCode::UNSUPPORTED_MEDIA_TYPE.into_response())
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Payload {
+    foo: String,
+}
+async fn handler(JsonOrForm(payload): JsonOrForm<Payload>) {
+    dbg!(payload);
+}
+// handle no route
+pub async fn fallback(uri: axum::http::Uri) -> (StatusCode, String) {
+    (
+        axum::http::StatusCode::NOT_FOUND,
+        format!("No route {}", uri),
+    )
+}
+async fn test_html() -> axum::response::Html<&'static str> {
+    include_str!("./pages/test2.html").into()
+}
+
+async fn hello_html() -> axum::response::Html<&'static str> {
+    include_str!("./pages/test1.html").into()
+}
+async fn shutdown_signal() {
+    tokio::signal::ctrl_c()
+        .await
+        .expect("expect tokio signal ctrl-c");
+    println!("signal shutdown");
+}
 #[cfg_attr(test, automock)]
 #[async_trait]
 trait HeroesRepositoryTrait {
@@ -66,6 +131,7 @@ async fn get_heroes(
     State(repo): State<DynHeroesRepository>,
     filter: Query<GetHeroFilter>,
 ) -> impl IntoResponse {
+    println!("GOT {:?}", filter.name.to_owned());
     let mut name_filter = filter.name.to_owned().unwrap_or("%".to_string());
     if !name_filter.ends_with("%") {
         name_filter.push('%');
@@ -123,6 +189,7 @@ impl HeroesRepositoryTrait for HeroRepo {
         if found_heroes.is_empty() {
             Err(DataBaseError::NotFound)
         } else {
+            println!("your name :{}", name);
             Ok(found_heroes)
         }
     }

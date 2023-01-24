@@ -2,6 +2,7 @@
 #![allow(unused_imports)]
 use axum::{
     async_trait,
+    body::StreamBody,
     extract::{FromRequest, Query, State},
     handler::Handler,
     http::{header::CONTENT_TYPE, Request, StatusCode, Uri},
@@ -11,6 +12,7 @@ use axum::{
     Form, Json, RequestExt, Router,
 };
 use axum_macros::debug_handler;
+use minijinja::{context, Environment};
 #[cfg(test)]
 use mockall::automock;
 use serde::{Deserialize, Serialize};
@@ -29,14 +31,18 @@ pub struct Hero {
     pub name: &'static str,
 }
 #[derive(Clone)]
-struct AppState(String);
+struct AppState(Vec<String>);
+
+macro_rules! vec_of_strings {
+    ($($x:expr),*) => (vec![$($x.to_string()),*]);
+}
 
 #[tokio::main]
 async fn main() {
     /*  let server_config = ServerConfig {
         foo: "0.0.0.0".into(),
     };*/
-    let MainState = AppState("state from main app".to_string());
+    let MainState = AppState(vec_of_strings!["alex", "peter", "alice"]);
     let repo = Arc::new(HeroRepo()) as DynHeroesRepository;
     let subscriber = fmt()
         .compact()
@@ -51,10 +57,13 @@ async fn main() {
         // .fallback(fallback)
         .nest("/heroes", heroes_routes())
         .with_state(repo)
-        .route("/hello", get(hello_html))
+        .route("/demo-form", get(get_demo_form).post(post_demo_form))
+        .route("/devices", get(hello_html))
+        .route("/test1", get(test_get_form).post(test_post_form))
+        .with_state(MainState)
         .route("/test", get(show_form).post(accept_form));
     //.route("/ss", post(handler_test))
-    //.with_state(MainState)
+    //.with_state(&MainState);
     //.route("/", post(handler));
 
     // Start the server. Note that for brevity, we do not add logging, graceful shutdown, etc.
@@ -65,6 +74,36 @@ async fn main() {
         .await
         .unwrap();
 }
+
+async fn test_get_form() -> axum::response::Html<&'static str> {
+    include_str!("./pages/test4.html").into()
+}
+
+#[derive(Debug, Deserialize, Clone, Eq, Hash, PartialEq)]
+pub struct User {
+    pub username: String,
+}
+
+async fn test_post_form(form: axum::extract::Form<User>) -> axum::response::Html<String> {
+    let user: User = form.0;
+    format!(
+        r#"
+        <!doctype html>
+        <html>
+            <head>
+                <title>Username</title>
+            </head>
+            <body>
+                <h1>username</h1>
+                {:?}
+            </body>
+        </html>
+        "#,
+        &user
+    )
+    .into()
+}
+
 #[derive(Deserialize, Debug)]
 #[allow(dead_code)]
 struct Input {
@@ -84,6 +123,7 @@ struct Resp0 {
     created: bool,
     username: String,
 }
+/*
 async fn handler_test(
     State(state): State<AppState>,
     JsonOrForm(payload): JsonOrForm<TestInput>,
@@ -98,7 +138,7 @@ async fn handler_test(
     (StatusCode::CREATED, Json(resp))
     // include_str!("./pages/test2.html").into()
 }
-
+*/
 struct JsonOrForm<T>(T);
 
 #[async_trait]
@@ -131,6 +171,65 @@ where
         Err(StatusCode::UNSUPPORTED_MEDIA_TYPE.into_response())
     }
 }
+
+pub async fn get_demo_form() -> axum::response::Html<&'static str> {
+    r#"
+    <!doctype html>
+    <html>
+        <head>
+            <title>Book</title>
+        </head>
+        <body>
+            <h1>Book</h1>
+            <form method="post" action="/demo-form">
+                <p>
+                    <label for="title">
+                        Title:
+                        <br>
+                        <input name="title">
+                    </label>
+                </p>
+                <p>
+                    <label for="author">
+                        Author:
+                        <br>
+                        <input name="author">
+                    </label>
+                </p>
+                <p>
+                    <input type="submit">
+                </p?
+            </form>
+        </body>
+    </html>
+    "#
+    .into()
+}
+#[derive(Debug, Deserialize, Clone, Eq, Hash, PartialEq)]
+pub struct Book {
+    pub title: String,
+    pub author: String,
+}
+pub async fn post_demo_form(form: axum::extract::Form<Book>) -> axum::response::Html<String> {
+    let book: Book = form.0;
+    format!(
+        r#"
+        <!doctype html>
+        <html>
+            <head>
+                <title>Book</title>
+            </head>
+            <body>
+                <h1>Book</h1>
+                {:?}
+            </body>
+        </html>
+        "#,
+        &book
+    )
+    .into()
+}
+
 /*
 #[derive(Debug, Serialize, Deserialize)]
 struct Payload {
@@ -151,8 +250,13 @@ async fn test_html() -> axum::response::Html<&'static str> {
     include_str!("./pages/test2.html").into()
 }
 
-async fn hello_html() -> axum::response::Html<&'static str> {
-    include_str!("./pages/test1.html").into()
+async fn hello_html(State(state): State<AppState>) -> axum::response::Html<String> {
+    //include_str!("./pages/test1.html").into()
+    let mut env = Environment::new();
+    env.add_template("hello.txt", include_str!("hello.txt"))
+        .unwrap();
+    let tmpl = env.get_template("hello.txt").unwrap();
+    tmpl.render(context!(names => state.0 )).unwrap().into()
 }
 async fn shutdown_signal() {
     tokio::signal::ctrl_c()
@@ -252,7 +356,8 @@ async fn show_form() -> Html<&'static str> {
         <html>
             <head></head>
             <body>
-                <form action="/" method="post">
+                <form action="/test" method="post">
+                #<form action="/devices" method="post">
                     <label for="name">
                         Enter your name:
                         <input type="text" name="name">

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% block head %}
+    <link rel="stylesheet" href="style.css" />
+    <title>{% block title %}{% endblock %} - My Webpage</title>
+    {% endblock %}
+</head>
+<body>
+    <div id="content">{% block content %}
+	<table>
+	<TR>
+	{% for name in names %}
+		 <TD class="c1">{{ loop.index }}</TD>
+		 <TD class="c2">{{ name }}</TD>
+	{#{{- loop.index }}. Hello {{ name }}! #}
+	</TR>
+	{% endfor %}
+	</table>
+    {% endblock %}</div>
+    <div id="footer">
+        {% block footer %}
+        &copy; Copyright 2008 by <a href="http://domain.invalid/">you</a>.
+        {% endblock %}
+    </div>
+</body>
+</html>

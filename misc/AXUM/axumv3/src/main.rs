@@ -6,7 +6,7 @@ use axum::{
     handler::Handler,
     http::{header::CONTENT_TYPE, Request, StatusCode, Uri},
     middleware::{self, Next},
-    response::{IntoResponse, Response},
+    response::{Html, IntoResponse, Response},
     routing::{get, post},
     Form, Json, RequestExt, Router,
 };
@@ -28,8 +28,15 @@ pub struct Hero {
     pub id: &'static str,
     pub name: &'static str,
 }
+#[derive(Clone)]
+struct AppState(String);
+
 #[tokio::main]
 async fn main() {
+    /*  let server_config = ServerConfig {
+        foo: "0.0.0.0".into(),
+    };*/
+    let MainState = AppState("state from main app".to_string());
     let repo = Arc::new(HeroRepo()) as DynHeroesRepository;
     let subscriber = fmt()
         .compact()
@@ -41,12 +48,14 @@ async fn main() {
     tracing::info!("start main server loop");
 
     let app = Router::new()
-        .fallback(fallback)
+        // .fallback(fallback)
         .nest("/heroes", heroes_routes())
         .with_state(repo)
         .route("/hello", get(hello_html))
-        .route("/test", get(test_html))
-        .route("/", post(handler));
+        .route("/test", get(show_form).post(accept_form));
+    //.route("/ss", post(handler_test))
+    //.with_state(MainState)
+    //.route("/", post(handler));
 
     // Start the server. Note that for brevity, we do not add logging, graceful shutdown, etc.
     let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
@@ -56,6 +65,40 @@ async fn main() {
         .await
         .unwrap();
 }
+#[derive(Deserialize, Debug)]
+#[allow(dead_code)]
+struct Input {
+    name: String,
+    email: String,
+}
+async fn accept_form(Form(input): Form<Input>) {
+    println!("aaaaaaaaaaaaaaa");
+    dbg!(&input);
+}
+#[derive(Deserialize, Debug)]
+pub struct TestInput {
+    username: String,
+}
+#[derive(Serialize)]
+struct Resp0 {
+    created: bool,
+    username: String,
+}
+async fn handler_test(
+    State(state): State<AppState>,
+    JsonOrForm(payload): JsonOrForm<TestInput>,
+) -> impl IntoResponse {
+    //async fn handler_test(State(state): State<AppState>) {
+    println!("state is {}", state.0); // extracting common state
+    dbg!(payload);
+    let resp = Resp0 {
+        created: true,
+        username: state.0.to_owned(),
+    };
+    (StatusCode::CREATED, Json(resp))
+    // include_str!("./pages/test2.html").into()
+}
+
 struct JsonOrForm<T>(T);
 
 #[async_trait]
@@ -88,14 +131,15 @@ where
         Err(StatusCode::UNSUPPORTED_MEDIA_TYPE.into_response())
     }
 }
-
+/*
 #[derive(Debug, Serialize, Deserialize)]
 struct Payload {
-    foo: String,
+    foo11: String,
 }
 async fn handler(JsonOrForm(payload): JsonOrForm<Payload>) {
     dbg!(payload);
 }
+*/
 // handle no route
 pub async fn fallback(uri: axum::http::Uri) -> (StatusCode, String) {
     (
@@ -199,6 +243,30 @@ impl HeroesRepositoryTrait for HeroRepo {
 enum DataBaseError {
     NotFound,
     InternalError,
+}
+
+async fn show_form() -> Html<&'static str> {
+    Html(
+        r#"
+        <!doctype html>
+        <html>
+            <head></head>
+            <body>
+                <form action="/" method="post">
+                    <label for="name">
+                        Enter your name:
+                        <input type="text" name="name">
+                    </label>
+                    <label>
+                        Enter your email:
+                        <input type="text" name="email">
+                    </label>
+                    <input type="submit" value="Subscribe!">
+                </form>
+            </body>
+        </html>
+        "#,
+    )
 }
 
 #[cfg(test)]

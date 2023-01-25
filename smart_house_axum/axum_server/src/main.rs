@@ -81,7 +81,10 @@ async fn main() {
     let app = Router::new()
         .fallback(fallback)
         .route("/devices", get(devices_main_page))
-        .with_state(housestate);
+        .with_state(housestate)
+        .route("/json0", get(returns_json))
+        .route("/json2", post(create_user))
+        .route("/json1", get(heterogeneous_handle));
     //.with_state(MainState);
     // Start the server. Note that for brevity, we do not add logging, graceful shutdown, etc.
     let addr = SocketAddr::from(([0, 0, 0, 0], 8080));

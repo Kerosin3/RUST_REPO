@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% block head %}
+    <link rel="stylesheet" href="style.css" />
+    <title>{% block title %}{% endblock %} - My Webpage</title>
+    {% endblock %}
+</head>
+<body>
+    <div id="content">{% block content %}
+	<table>
+	<TR>
+	{% for name in names %}
+		 <TD class="c1">{{ loop.index }}</TD>
+		 <TD class="c2">{{ name }}</TD>
+		 <TD class="c3">  
+			<form action="/devices/{{ name }}" method="post">
+			    <input id="ret_info" type="submit" name="ret_info" value="Retrieve info">
+			</form>
+		 </TD>
+		 <TD class="c4">  
+			<form action="/devices_del/{{ name }}" method="post">
+			    <input id="del_dev" type="submit" name="del_dev" value="Delete device">
+			</form>
+		 </TD>
+
+	{#{{- loop.index }}. Hello {{ name }}! #}
+	</TR>
+	{% endfor %}
+	</table>
+    {% endblock %}</div>
+    <div id="footer">
+        {% block footer %}
+        &copy; Copyright 2008 by <a href="http://domain.invalid/">you</a>.
+        {% endblock %}
+    </div>
+</body>
+</html>

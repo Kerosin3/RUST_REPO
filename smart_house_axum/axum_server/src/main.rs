@@ -16,13 +16,16 @@ use lib_shouse::home::home::home::*;
 use minijinja::{context, Environment};
 #[cfg(test)]
 use mockall::automock;
+use rand::rngs::StdRng;
+use rand::{Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
+use tokio::time::{sleep, Duration};
 mod server_socket_struct;
 mod server_termometer_struct;
 use server_socket_struct::*;
 use server_termometer_struct::*;
 use std::sync::Mutex;
-use std::{net::SocketAddr, sync::Arc, time::Duration};
+use std::{net::SocketAddr, sync::Arc};
 use tokio::time;
 use tower::ServiceBuilder;
 use tower_http::ServiceBuilderExt;
@@ -40,6 +43,7 @@ pub struct Hero {
 }
 #[derive(Clone)]
 pub struct AppState(Vec<String>);
+// main app state
 #[derive(Clone)]
 pub struct HouseWrapperState(Arc<Mutex<SmartHouse>>);
 
@@ -74,19 +78,25 @@ async fn main() {
         "added device:{} to server",
         _dev1_handler.get_devname().unwrap()
     );
+    tokio::spawn(async move { imitate_socket_power_change(_dev0_handler).await }); // change dev0
+    tokio::spawn(async move { imitate_termo_data_achange(_dev1_handler).await }); // change dev1
     tracing::info!("start main server loop");
     let housestate = HouseWrapperState(Arc::new(Mutex::new(some_house)));
 
     //    let MainState = AppState(vec_of_strings!["alex", "peter", "alice"]);
     let app = Router::new()
         .fallback(fallback)
-        .route("/devices", get(devices_main_page))
-        .with_state(housestate)
+        //        .route("/devices", get(devices_main_page))
+        //       .with_state(housestate)
         .route("/json0", get(returns_json))
         .route("/json2", post(create_user))
+        .route("/devices", post(get_devices))
+        .with_state(housestate.clone())
+        .route("/getdevproperty", post(get_property))
+        .with_state(housestate.clone())
         .route("/json1", get(heterogeneous_handle));
     //.with_state(MainState);
-    // Start the server. Note that for brevity, we do not add logging, graceful shutdown, etc.
+
     let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
@@ -112,4 +122,21 @@ fn wrap_device<T: 'static + lib_shouse::home::home::home::Device + Send + Sync>(
     some_device: T,
 ) -> Arc<Mutex<dyn Device + Send>> {
     Arc::new(Mutex::new(some_device))
+}
+
+async fn imitate_socket_power_change(handle: Device_Handler) {
+    let mut rng: StdRng = SeedableRng::from_entropy();
+    loop {
+        handle
+            .property_change_state(rng.gen_range(1000..5000))
+            .unwrap();
+        sleep(Duration::from_millis(100)).await;
+    }
+}
+async fn imitate_termo_data_achange(handle: Device_Handler) {
+    let mut rng: StdRng = SeedableRng::from_entropy();
+    loop {
+        handle.property_change_state(rng.gen_range(30..90)).unwrap();
+        sleep(Duration::from_millis(100)).await;
+    }
 }

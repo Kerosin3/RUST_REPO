@@ -49,12 +49,13 @@ struct Hello {
     name: String,
 }
 //response with JSON
-pub async fn returns_json() -> axum::response::Response {
+pub async fn returns_json() -> impl IntoResponse {
     let hello = Hello {
         name: String::from("world"),
     };
 
-    Json(hello).into_response()
+    //    Json(hello).into_response()
+    (StatusCode::CREATED, Json(hello))
 }
 
 //http  GET 127.0.0.1:8080/json1 Accept:application/json -v
@@ -89,4 +90,111 @@ pub struct CreateUser {
 //http POST 127.0.0.1:8080/json2 email="dasdasd" password="123244" -v
 pub async fn create_user(Json(payload): Json<CreateUser>) {
     dbg!("{:?}", payload);
+}
+//http POST 127.0.0.1:8080/getdevproperty devname="termometer_#0"  -v
+pub async fn get_property(
+    State(home_obj): State<HouseWrapperState>,
+    Json(payload): Json<DeviceG>,
+) -> impl IntoResponse {
+    //    dbg!("{:?}", &payload);
+    if home_obj.0.is_poisoned() {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(DeviceState {
+                devname: payload.devname,
+                info: "error while processing request".to_string(),
+            }),
+        );
+    }
+    if let Ok(guard) = home_obj.0.try_lock() {
+        if let Some(info_r_d) = guard.test_whether_a_dev_exists(&payload.devname) {
+            // room device
+            if let Ok(info_prop) = guard.get_device_property(info_r_d.1.as_str()) {
+                return (
+                    StatusCode::OK,
+                    Json(DeviceState {
+                        devname: payload.devname,
+                        info: info_prop,
+                    }),
+                );
+            } else {
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(DeviceState {
+                        devname: payload.devname,
+                        info: "cannot get device property".to_string(),
+                    }),
+                );
+            }
+        } else {
+            return (
+                StatusCode::NOT_FOUND,
+                Json(DeviceState {
+                    devname: payload.devname,
+                    info: "device not found in the server!".to_string(),
+                }),
+            );
+        }
+    } else {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(DeviceState {
+                devname: payload.devname,
+                info: "error locking mutex".to_string(),
+            }),
+        );
+    }
+}
+
+#[derive(Deserialize, Debug)]
+pub struct DeviceG {
+    devname: String,
+}
+#[derive(Serialize, Debug)]
+pub struct DeviceState {
+    devname: String,
+    info: String,
+}
+//#[debug_handler]
+pub async fn get_devices(
+    State(home_obj): State<HouseWrapperState>,
+    Json(payload): Json<DeviceG>,
+) -> impl IntoResponse {
+    //    dbg!("{:?}", &payload);
+    if home_obj.0.is_poisoned() {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(DeviceState {
+                devname: payload.devname,
+                info: "error while processing request".to_string(),
+            }),
+        );
+    }
+    if let Ok(guard) = home_obj.0.try_lock() {
+        if let Some(info_r_d) = guard.test_whether_a_dev_exists(&payload.devname) {
+            return (
+                StatusCode::OK,
+                Json(DeviceState {
+                    devname: info_r_d.1,
+                    info: "device found!".to_string(),
+                }),
+            );
+        } else {
+            return (
+                StatusCode::NOT_FOUND,
+                Json(DeviceState {
+                    devname: payload.devname,
+                    info: "device not found in the server!".to_string(),
+                }),
+            );
+        }
+    } else {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(DeviceState {
+                devname: payload.devname,
+                info: "error locking mutex".to_string(),
+            }),
+        );
+    }
 }

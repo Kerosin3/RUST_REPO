@@ -1,10 +1,21 @@
 #![allow(dead_code)]
 use axum::{
-    http::{ StatusCode},
-    routing::{ post},
+    async_trait,
+    body::StreamBody,
+    extract::{FromRequest, Query, State},
+    handler::Handler,
+    http::{header::CONTENT_TYPE, Request, StatusCode, Uri},
+    middleware::{self, Next},
+    response::{Html, IntoResponse, Response},
+    routing::{get, post},
+    Form, Json, RequestExt, Router,
 };
 
+use axum_macros::debug_handler;
 use lib_shouse::home::home::home::*;
+use minijinja::{context, Environment};
+#[cfg(test)]
+use mockall::automock;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
@@ -15,8 +26,12 @@ use server_socket_struct::*;
 use server_termometer_struct::*;
 use std::sync::Mutex;
 use std::{net::SocketAddr, sync::Arc};
+use tokio::time;
+use tower::ServiceBuilder;
+use tower_http::ServiceBuilderExt;
 use tracing::Level;
 use tracing_subscriber::fmt;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 mod routes;
 use routes::*;
 

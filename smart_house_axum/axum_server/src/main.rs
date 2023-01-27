@@ -1,13 +1,14 @@
 #![allow(dead_code)]
+#![allow(unused_imports)]
 use axum::{
-    http::{ StatusCode},
-    routing::{ post},
+    http::StatusCode,
+    routing::{get, post},
+    Router,
 };
 
 use lib_shouse::home::home::home::*;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
-use serde::{Deserialize, Serialize};
 use tokio::time::{sleep, Duration};
 mod server_socket_struct;
 mod server_termometer_struct;
@@ -20,17 +21,9 @@ use tracing_subscriber::fmt;
 mod routes;
 use routes::*;
 
-#[derive(Serialize)]
-#[cfg_attr(test, derive(Deserialize, Eq, PartialEq, Debug, Copy, Clone, Default))]
-pub struct Hero {
-    pub id: &'static str,
-    pub name: &'static str,
-}
-#[derive(Clone)]
-pub struct AppState(Vec<String>);
-// main app state
 #[derive(Clone)]
 pub struct HouseWrapperState(Arc<Mutex<SmartHouse>>);
+
 #[tokio::main]
 async fn main() {
     let subscriber = fmt()
@@ -52,11 +45,11 @@ async fn main() {
     _dev1_handler.property_change_state(36.6_f32).unwrap();
     tracing::info!(
         "added device:{} to server",
-        _dev0_handler.get_devname().unwrap()
+        &_dev0_handler.get_devname().unwrap()
     );
     tracing::info!(
         "added device:{} to server",
-        _dev1_handler.get_devname().unwrap()
+        &_dev1_handler.get_devname().unwrap()
     );
     tokio::spawn(async move { imitate_socket_power_change(_dev0_handler).await }); // change dev0
     tokio::spawn(async move { imitate_termo_data_achange(_dev1_handler).await }); // change dev1
@@ -67,20 +60,21 @@ async fn main() {
         .fallback(fallback)
         .route("/getdevproperty", post(get_property))
         .with_state(housestate.clone())
-
+        .route("/device", get(turning_the_device))
+        .with_state(housestate.clone());
     let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
-    axum::Server::bind(&addr)
-        .serve(app.into_make_service())
-        .with_graceful_shutdown(shutdown_signal())
-        .await
-        .unwrap();
+    if let Ok(sapp) = axum::Server::try_bind(&addr) {
+        sapp.serve(app.into_make_service())
+            .with_graceful_shutdown(shutdown_signal())
+            .await
+            .unwrap();
+    } else {
+        println!("error binding server,check whether port is being occupied, aborting");
+    }
 }
 
 pub async fn fallback(uri: axum::http::Uri) -> (StatusCode, String) {
-    (
-        axum::http::StatusCode::NOT_FOUND,
-        format!("No route {uri}"),
-    )
+    (axum::http::StatusCode::NOT_FOUND, format!("No route {uri}"))
 }
 async fn shutdown_signal() {
     tokio::signal::ctrl_c()

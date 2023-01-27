@@ -1,6 +1,10 @@
-use crate::{AppState, HouseWrapperState};
+use crate::HouseWrapperState;
 use axum::extract::State;
-use axum::{extract::Query, routing::get, Router};
+use axum::{
+    extract::{Path, Query},
+    routing::get,
+    Router,
+};
 use axum::{
     http::{
         header::{HeaderMap, ACCEPT},
@@ -10,14 +14,60 @@ use axum::{
     routing::post,
 };
 use lib_shouse::home::home::home::*;
-use minijinja::{context, Environment};
 use serde::{de, Deserialize, Deserializer, Serialize};
-use std::str::FromStr;
-use std::sync::MutexGuard;
 use tracing::Level;
 use tracing_subscriber::fmt;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub struct Turning {
+    devname: String,
+    status: String,
+}
+impl Default for Turning {
+    fn default() -> Self {
+        Self {
+            devname: "default_dev".to_string(),
+            status: "default".to_string(),
+        }
+    }
+}
+
+//http --form GET 127.0.0.1:8080/device devname=="smart_socket_#0" status=="off"
+pub async fn turning_the_device(
+    State(home_obj): State<HouseWrapperState>,
+    command: Option<Query<Turning>>,
+) -> StatusCode {
+    if let Some(Query(req_str)) = command {
+        if let Ok(mut guard) = home_obj.0.try_lock() {
+            if let Some((room, dev)) = guard.test_whether_a_dev_exists(&req_str.devname) {
+                if req_str.status.contains("on") {
+                    guard.change_dev_state_in_room(&room, &dev, true).unwrap();
+                    tracing::info!("turning ON device {}", &dev);
+                    StatusCode::OK
+                } else if req_str.status.contains("off") {
+                    tracing::info!("turning OFF device {}", &dev);
+                    guard.change_dev_state_in_room(&room, &dev, false).unwrap();
+                    StatusCode::OK
+                } else {
+                    tracing::info!("strange input command, turning OFF device {}", &dev);
+                    guard.change_dev_state_in_room(&room, &dev, false).unwrap();
+                    StatusCode::OK
+                }
+            } else {
+                tracing::error!("no device {} exists", req_str.devname);
+                StatusCode::NOT_FOUND
+            }
+        } else {
+            tracing::error!("cannot lock mutex");
+            StatusCode::INTERNAL_SERVER_ERROR
+        }
+    } else {
+        tracing::error!("error processing query");
+        StatusCode::INTERNAL_SERVER_ERROR
+    }
+}
 //http POST 127.0.0.1:8080/getdevproperty devname="termometer_#0"  -v
 pub async fn get_property(
     State(home_obj): State<HouseWrapperState>,
@@ -133,6 +183,13 @@ pub async fn get_devices(
         )
     }
 }
+//for debug
+fn find_subsequence(haystack: &[u8], needle: &[u8]) -> Option<usize> {
+    haystack
+        .windows(needle.len())
+        .position(|window| window == needle)
+}
+
 /* jinja template
 pub async fn devices_main_page(State(state): State<AppState>) -> axum::response::Html<String> {
     //include_str!("./pages/test1.html").into()
@@ -145,6 +202,7 @@ pub async fn devices_main_page(State(state): State<AppState>) -> axum::response:
 }*/
 //http  GET 127.0.0.1:8080/json1 Accept:application/json -v
 //http  GET 127.0.0.1:8080/json1 Accept:text/html -v
+/*
 pub async fn heterogeneous_handle(headers: HeaderMap) -> Response {
     match headers.get(ACCEPT).map(|x| x.as_bytes()) {
         Some(r) if find_subsequence(r, b"text/html").is_some() => {
@@ -159,10 +217,6 @@ pub async fn heterogeneous_handle(headers: HeaderMap) -> Response {
         _ => StatusCode::BAD_REQUEST.into_response(),
     }
 }
-fn find_subsequence(haystack: &[u8], needle: &[u8]) -> Option<usize> {
-    haystack
-        .windows(needle.len())
-        .position(|window| window == needle)
-}
+*/
 //https://github.com/tokio-rs/axum/blob/main/examples/parse-body-based-on-content-type/src/main.rs
 //

@@ -1,11 +1,9 @@
-# Smarthouse lib via async server ( tokio )
+# Smarthouse lib via axum (base on hyper) web framework.  
 ## Usage
-1. launch the server via command ``cargo run -p server_tokio``
-2. launch client app, specifying a valid dev name and optional enable\disable CLI command.
-### Examples
-1. `` cargo run -p server_tokio --example client_example -- -d termometer_#0 -e true`` to enable termometer with a name termometer_#0
-2. `` cargo run -p server_tokio --example client_example -- -d termometer_#0 `` to get information from termometer_#0
-3. `` cargo run -p server_tokio --example client_example -- --h `` information 
-
+1. launch the server via command ``cargo run``
+2. launch example client app via command `` cargo run --example client ``
+### Info
+1. Use query request with [devname,status] field to ``http::/localhost:8080/device`` to turn on and turn off a device 
+2. Use POST with JSON with field [devname] to retrieve current information about one of added devices, retrieve info in form of JSON with [devname,info] fields.
 ## Notes
 Termometer's and socket's data are being updated every 100 mili seconds.

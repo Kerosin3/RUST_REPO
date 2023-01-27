@@ -11,6 +11,7 @@ use axum::{
     routing::{get, post},
     Form, Json, RequestExt, Router,
 };
+
 use axum_macros::debug_handler;
 use lib_shouse::home::home::home::*;
 use minijinja::{context, Environment};
@@ -46,11 +47,6 @@ pub struct AppState(Vec<String>);
 // main app state
 #[derive(Clone)]
 pub struct HouseWrapperState(Arc<Mutex<SmartHouse>>);
-
-macro_rules! vec_of_strings {
-    ($($x:expr),*) => (vec![$($x.to_string()),*]);
-}
-
 #[tokio::main]
 async fn main() {
     let subscriber = fmt()
@@ -83,7 +79,6 @@ async fn main() {
     tracing::info!("start main server loop");
     let housestate = HouseWrapperState(Arc::new(Mutex::new(some_house)));
 
-    //    let MainState = AppState(vec_of_strings!["alex", "peter", "alice"]);
     let app = Router::new()
         .fallback(fallback)
         //        .route("/devices", get(devices_main_page))
@@ -140,3 +135,9 @@ async fn imitate_termo_data_achange(handle: Device_Handler) {
         sleep(Duration::from_millis(100)).await;
     }
 }
+//debug
+/*
+macro_rules! vec_of_strings {
+    ($($x:expr),*) => (vec![$($x.to_string()),*]);
+}
+*/

@@ -1,17 +1,18 @@
 use crate::{AppState, HouseWrapperState};
 use axum::extract::State;
+use axum::{extract::Query, routing::get, Router};
 use axum::{
     http::{
         header::{HeaderMap, ACCEPT},
         status::StatusCode,
     },
     response::{IntoResponse, Json, Response},
-    routing::{get, post},
+    routing::post,
 };
 use lib_shouse::home::home::home::*;
 use minijinja::{context, Environment};
-use serde::Deserialize;
-use serde::Serialize;
+use serde::{de, Deserialize, Deserializer, Serialize};
+use std::str::FromStr;
 use std::sync::MutexGuard;
 use tracing::Level;
 use tracing_subscriber::fmt;
@@ -96,8 +97,8 @@ pub async fn get_property(
     State(home_obj): State<HouseWrapperState>,
     Json(payload): Json<DeviceG>,
 ) -> impl IntoResponse {
-    //    dbg!("{:?}", &payload);
     if home_obj.0.is_poisoned() {
+        tracing::error!("poisoned mutex meet");
         return (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(DeviceState {
@@ -110,14 +111,16 @@ pub async fn get_property(
         if let Some(info_r_d) = guard.test_whether_a_dev_exists(&payload.devname) {
             // room device
             if let Ok(info_prop) = guard.get_device_property(info_r_d.1.as_str()) {
-                return (
+                tracing::info!("sending info about device {}", payload.devname);
+                (
                     StatusCode::OK,
                     Json(DeviceState {
                         devname: payload.devname,
                         info: info_prop,
                     }),
-                );
+                )
             } else {
+                tracing::error!("error while getting device property");
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     Json(DeviceState {
@@ -127,26 +130,28 @@ pub async fn get_property(
                 );
             }
         } else {
-            return (
+            tracing::error!("device: {} not found!", payload.devname);
+            (
                 StatusCode::NOT_FOUND,
                 Json(DeviceState {
                     devname: payload.devname,
                     info: "device not found in the server!".to_string(),
                 }),
-            );
+            )
         }
     } else {
-        return (
+        tracing::error!("error locking mutex");
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(DeviceState {
                 devname: payload.devname,
                 info: "error locking mutex".to_string(),
             }),
-        );
+        )
     }
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Deserialize)]
 pub struct DeviceG {
     devname: String,
 }
@@ -155,6 +160,18 @@ pub struct DeviceState {
     devname: String,
     info: String,
 }
+fn empty_string_as_none<'de, D, T>(de: D) -> Result<Option<T>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: FromStr,
+    T::Err: std::fmt::Display,
+{
+    let opt = Option::<String>::deserialize(de)?;
+    match opt.as_deref() {
+        None | Some("") => Ok(None),
+        Some(s) => FromStr::from_str(s).map_err(de::Error::custom).map(Some),
+    }
+}
 //#[debug_handler]
 pub async fn get_devices(
     State(home_obj): State<HouseWrapperState>,
@@ -162,6 +179,7 @@ pub async fn get_devices(
 ) -> impl IntoResponse {
     //    dbg!("{:?}", &payload);
     if home_obj.0.is_poisoned() {
+        tracing::error!("poisoned mutex meet");
         return (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(DeviceState {
@@ -172,29 +190,32 @@ pub async fn get_devices(
     }
     if let Ok(guard) = home_obj.0.try_lock() {
         if let Some(info_r_d) = guard.test_whether_a_dev_exists(&payload.devname) {
-            return (
+            tracing::info!("device {} was requested", payload.devname);
+            (
                 StatusCode::OK,
                 Json(DeviceState {
                     devname: info_r_d.1,
                     info: "device found!".to_string(),
                 }),
-            );
+            )
         } else {
-            return (
+            tracing::info!("device {} was not found in the server", payload.devname);
+            (
                 StatusCode::NOT_FOUND,
                 Json(DeviceState {
                     devname: payload.devname,
                     info: "device not found in the server!".to_string(),
                 }),
-            );
+            )
         }
     } else {
-        return (
+        tracing::error!("error locking mutex");
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(DeviceState {
                 devname: payload.devname,
                 info: "error locking mutex".to_string(),
             }),
-        );
+        )
     }
 }

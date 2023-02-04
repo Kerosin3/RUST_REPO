@@ -1,17 +1,12 @@
+#![feature(is_some_and)]
 use num::One;
 use rstest::*;
+mod errors;
+mod mocking;
+//use mocking::*;
 
 fn main() {
     println!("Hello, world!");
-}
-#[mockall::automock]
-trait MyTrait {
-    fn method1(&self, x: u32) -> u32 {
-        x
-    }
-    fn method2(&self) {
-        println!("heheheh");
-    }
 }
 // returns just a string
 #[fixture]
@@ -28,9 +23,9 @@ fn return_i32() -> i32 {
 fn other_fixture_usage(return_i32: i32) -> i32 {
     return_i32 + 50_i32
 }
-fn call_trait_fumc(x: &dyn MyTrait) -> u32 {
-    x.method1(42)
-}
+//fn call_trait_fumc(x: &dyn MyTrait) -> u32 {
+//    x.method1(42)
+//}
 // ordinary function
 fn add_one<T>(arg: T) -> T
 where
@@ -62,15 +57,15 @@ mod tests {
     fn test_1(other_fixture_usage: i32) {
         assert_eq!(other_fixture_usage, 92_i32);
     }
-    #[rstest]
-    fn test_some() {
-        let mut mock = MockMyTrait::new();
-        mock.expect_method1()
-            .with(predicate::eq(42))
-            .returning(|x| x);
-        assert_eq!(42_u32, mock.method1(42));
-    }
-
+    /*   #[rstest]
+        fn test_some() {
+            let mut mock = MockMyTrait::new();
+            mock.expect_method1()
+                .with(predicate::eq(42))
+                .returning(|x| x);
+            assert_eq!(42_u32, mock.method1(42));
+        }
+    */
     #[rstest]
     #[should_panic]
     fn let_me_panic() {

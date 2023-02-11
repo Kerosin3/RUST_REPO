@@ -71,7 +71,7 @@ pub mod implement {
                 // test existence
                 return Err(ErrorDb::HouseAlreadyExists(housename.to_owned()));
             }
-            let query_str = format!("INSERT INTO smarthouse (housename) VALUES (?)");
+            let query_str = "INSERT INTO smarthouse (housename) VALUES (?)".to_string();
             sqlx::query(&query_str)
                 .bind(housename)
                 .execute(self)
@@ -86,10 +86,10 @@ pub mod implement {
             devname: &str,
             value: bool,
         ) -> Result<String, ErrorDb> {
-            if !self.test_whether_house_exists(&housename).await? {
+            if !self.test_whether_house_exists(housename).await? {
                 return Err(ErrorDb::HouseNotExists(housename.to_owned()));
             }
-            if !self.test_whether_room_exists(&roomname).await? {
+            if !self.test_whether_room_exists(roomname).await? {
                 return Err(ErrorDb::RoomNotExists(roomname.to_owned()));
             }
             if !self
@@ -109,8 +109,7 @@ pub mod implement {
                 .execute(self)
                 .await?;
             let out = format!(
-                "state of device {} in room {} is {}",
-                devname, roomname, value
+                "state of device {devname} in room {roomname} is {value}"
             );
             tracing::info!("{out}");
             Ok(out)
@@ -122,10 +121,10 @@ pub mod implement {
             devname: &str,
             info: String,
         ) -> Result<(), ErrorDb> {
-            if !self.test_whether_house_exists(&housename).await? {
+            if !self.test_whether_house_exists(housename).await? {
                 return Err(ErrorDb::HouseNotExists(housename.to_owned()));
             }
-            if !self.test_whether_room_exists(&roomname).await? {
+            if !self.test_whether_room_exists(roomname).await? {
                 return Err(ErrorDb::RoomNotExists(roomname.to_owned()));
             }
             if !self
@@ -153,10 +152,10 @@ pub mod implement {
             roomname: &str,
             devname: &str,
         ) -> Result<String, ErrorDb> {
-            if !self.test_whether_house_exists(&housename).await? {
+            if !self.test_whether_house_exists(housename).await? {
                 return Err(ErrorDb::HouseNotExists(housename.to_owned()));
             }
-            if !self.test_whether_room_exists(&roomname).await? {
+            if !self.test_whether_room_exists(roomname).await? {
                 return Err(ErrorDb::RoomNotExists(roomname.to_owned()));
             }
             if !self
@@ -177,7 +176,7 @@ pub mod implement {
             .fetch_one(self)
             .await?;
 
-            Ok(format!("{}", result.info))
+            Ok(result.info)
         }
 
         async fn test_whether_room_exists(self, roomname: &str) -> Result<bool, ErrorDb> {
@@ -194,8 +193,8 @@ pub mod implement {
                     Ok(true)
                 }
                 Err(_e) => {
-                    let err = format!("{:?}", _e); // get error
-                    if err == "RowNotFound".to_string() {
+                    let err = format!("{_e:?}"); // get error
+                    if err == *"RowNotFound" {
                         tracing::info!("room {} NOT EXISTS! ", roomname);
                         Ok(false)
                     } else {
@@ -219,8 +218,8 @@ pub mod implement {
                     Ok(true)
                 }
                 Err(_e) => {
-                    let err = format!("{:?}", _e); // get error
-                    if err == "RowNotFound".to_string() {
+                    let err = format!("{_e:?}"); // get error
+                    if err == *"RowNotFound" {
                         tracing::info!("house {} NOT EXISTS! ", housename);
                         Ok(false)
                     } else {
@@ -236,10 +235,10 @@ pub mod implement {
             housename: &str, // not checked
             roomname: &str,  // checkd
         ) -> Result<(), ErrorDb> {
-            if !self.test_whether_house_exists(&housename).await? {
+            if !self.test_whether_house_exists(housename).await? {
                 return Err(ErrorDb::HouseNotExists(housename.to_owned()));
             }
-            if !self.test_whether_room_exists(&roomname).await? {
+            if !self.test_whether_room_exists(roomname).await? {
                 return Err(ErrorDb::RoomNotExists(roomname.to_owned()));
             }
             if !self
@@ -265,10 +264,10 @@ pub mod implement {
             housename: &str, // not checked
             roomname: &str,  // checkd
         ) -> Result<(), ErrorDb> {
-            if !self.test_whether_house_exists(&housename).await? {
+            if !self.test_whether_house_exists(housename).await? {
                 return Err(ErrorDb::HouseNotExists(housename.to_owned()));
             }
-            if !self.test_whether_room_exists(&roomname).await? {
+            if !self.test_whether_room_exists(roomname).await? {
                 return Err(ErrorDb::RoomNotExists(roomname.to_owned()));
             }
             if self
@@ -281,9 +280,7 @@ pub mod implement {
                 ));
             }
 
-            let query_str = format!(
-                "INSERT INTO devices (devname, info, active, attached_to_room, attached_to_house ) VALUES (?,?,?,?,?)"
-            );
+            let query_str = "INSERT INTO devices (devname, info, active, attached_to_room, attached_to_house ) VALUES (?,?,?,?,?)".to_string();
             match sqlx::query(&query_str)
                 .bind(devname)
                 .bind("not initialized")
@@ -327,8 +324,8 @@ pub mod implement {
                     Ok(true)
                 }
                 Err(_e) => {
-                    let err = format!("{:?}", _e); // get error
-                    if err == "RowNotFound".to_string() {
+                    let err = format!("{_e:?}"); // get error
+                    if err == *"RowNotFound" {
                         tracing::info!("device {} NOT EXISTS! in room {}", devname, roomname);
                         Ok(false)
                     } else {
@@ -340,7 +337,7 @@ pub mod implement {
         }
 
         async fn get_all_devices_in_house(self, housename: &str) -> Result<String, ErrorDb> {
-            if !self.test_whether_house_exists(&housename).await? {
+            if !self.test_whether_house_exists(housename).await? {
                 return Err(ErrorDb::HouseNotExists(housename.to_string()));
             }
             match sqlx::query_as::<_, DevInRoom>(
@@ -351,7 +348,7 @@ pub mod implement {
             {
                 Ok(_results) => {
                     let mut out = String::new();
-                    writeln!(out, "---info about all devices in house {} ---", housename)
+                    writeln!(out, "---info about all devices in house {housename} ---")
                         .expect("error while writing to string");
                     for r in _results {
                         writeln!(
@@ -373,7 +370,7 @@ pub mod implement {
             }
         }
         async fn get_all_rooms_in_house(self, housename: &str) -> Result<String, ErrorDb> {
-            if !self.test_whether_house_exists(&housename).await? {
+            if !self.test_whether_house_exists(housename).await? {
                 return Err(ErrorDb::HouseNotExists(housename.to_string()));
             }
             match sqlx::query_as::<_, RoomInHouse>(
@@ -390,7 +387,7 @@ pub mod implement {
             {
                 Ok(_results) => {
                     let mut out = String::new();
-                    writeln!(out, "---info about all rooms in house {} ---", housename)
+                    writeln!(out, "---info about all rooms in house {housename} ---")
                         .expect("error while writing to string");
                     for r in _results {
                         writeln!(
@@ -422,7 +419,7 @@ pub mod implement {
         }
 
         async fn add_room(self, roomname: &str, info: &str) -> Result<(), ErrorDb> {
-            let query_str = format!("INSERT INTO rooms (roomname,info) VALUES (?,?)");
+            let query_str = "INSERT INTO rooms (roomname,info) VALUES (?,?)".to_string();
             sqlx::query(&query_str)
                 .bind(roomname)
                 .bind(info)
@@ -433,7 +430,7 @@ pub mod implement {
             Ok(())
         }
         async fn info_about_room(self, roomname: &str) -> Result<String, ErrorDb> {
-            if !self.test_whether_room_exists(&roomname).await? {
+            if !self.test_whether_room_exists(roomname).await? {
                 return Err(ErrorDb::RoomNotExists(roomname.to_string()));
             }
             match sqlx::query_as::<_, RoomGeneric>(
@@ -469,10 +466,10 @@ pub mod implement {
             housename: &str,
             roomname: &str,
         ) -> Result<(), ErrorDb> {
-            if !self.test_whether_house_exists(&housename).await? {
+            if !self.test_whether_house_exists(housename).await? {
                 return Err(ErrorDb::HouseNotExists(housename.to_string()));
             }
-            if !self.test_whether_room_exists(&roomname).await? {
+            if !self.test_whether_room_exists(roomname).await? {
                 return Err(ErrorDb::RoomNotExists(housename.to_string()));
             }
             sqlx::query("UPDATE rooms SET attached_to_house=? WHERE roomname=? ")
@@ -515,7 +512,7 @@ pub mod implement {
         }
 
         async fn info_about_house(self, house: &str) -> Result<String, ErrorDb> {
-            if !self.test_whether_house_exists(&house).await? {
+            if !self.test_whether_house_exists(house).await? {
                 return Err(ErrorDb::HouseNotExists(house.to_string()));
             }
             match sqlx::query_as::<_, SHouseGeneric>(

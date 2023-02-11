@@ -8,7 +8,7 @@ use std::thread;
 use std::time::Duration;
 use thiserror::Error;
 use tracing::{instrument, Level};
-use tracing_subscriber;
+
 use tracing_subscriber::fmt;
 mod implement_db_trait;
 use implement_db_trait::implement::*;
@@ -28,10 +28,10 @@ async fn main() -> anyhow::Result<()> {
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
     tracing::info!("application started!");
     if !Sqlite::database_exists(DB_URL).await.unwrap_or(false) {
-        println!("Creating database {}", DB_URL);
+        println!("Creating database {DB_URL}");
         match Sqlite::create_database(DB_URL).await {
             Ok(_) => println!("Create db success"),
-            Err(error) => panic!("error: {}", error),
+            Err(error) => panic!("error: {error}"),
         }
     } else {
         println!("Database already exists");
@@ -50,7 +50,7 @@ async fn main() -> anyhow::Result<()> {
             panic!("error: {error}");
         }
     }
-    println!("migration: {:?}", migration_results);
+    println!("migration: {migration_results:?}");
     let _result = sqlx::query(
         "SELECT name
          FROM sqlite_schema

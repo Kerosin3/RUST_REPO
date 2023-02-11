@@ -1,0 +1,22 @@
+[package]
+name = "db_test"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.69"
+async-trait = "0.1.64"
+console = "0.15.5"
+futures = "0.3.26"
+sqlx = { version="0.6.2", features = ["sqlite","runtime-tokio-native-tls"]}
+structopt = "0.3.26"
+tarpc = {version = "0.31.0", features = ["full"]}
+thiserror = "1.0.38"
+tokio = {version="1.25.0", features = ["macros","net","rt-multi-thread"]}
+tracing = "0.1.37"
+tracing-subscriber = "0.3.16"
+serde_json = "1.0"
+tokio-serde = { version = "0.8", features = ["json"] }
+rand = "0.8.5"

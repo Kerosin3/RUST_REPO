@@ -1,6 +1,6 @@
 #![feature(is_some_and)]
-#[allow(unused_imports)]
-#[allow(unused_results)]
+#![allow(unused_imports)]
+#![allow(unused_results)]
 use anyhow::anyhow;
 use async_trait::async_trait;
 use sqlx::{migrate::MigrateDatabase, FromRow, Row, Sqlite, SqlitePool};
@@ -10,10 +10,6 @@ use thiserror::Error;
 use tracing::{instrument, Level};
 use tracing_subscriber;
 use tracing_subscriber::fmt;
-//mod house;
-//use house::house_lib::*;
-//mod room;
-//use room::rooms_lib::*;
 mod implement_db_trait;
 use implement_db_trait::implement::*;
 //---------------------------------------------
@@ -49,13 +45,13 @@ async fn main() -> anyhow::Result<()> {
         .run(&db)
         .await;
     match migration_results {
-        Ok(_) => println!("Migration success"),
+        Ok(_) => tracing::info!("MIGRATION SUCESSED"),
         Err(error) => {
-            panic!("error: {}", error);
+            panic!("error: {error}");
         }
     }
     println!("migration: {:?}", migration_results);
-    let result = sqlx::query(
+    let _result = sqlx::query(
         "SELECT name
          FROM sqlite_schema
          WHERE type ='table' 
@@ -64,38 +60,52 @@ async fn main() -> anyhow::Result<()> {
     .fetch_all(&db)
     .await
     .unwrap();
-    for (idx, row) in result.iter().enumerate() {
-        println!("[{}]: {:?}", idx, row.get::<String, &str>("name"));
-    }
     let main_house = "smarthouse#1".to_string();
     db.add_house(&main_house).await;
-    db.activate_house(&main_house, true).await;
+    db.activate_house(&main_house, true).await?;
     //----------------------------
     let (room0, room1) = ("someroom#0".to_string(), "someroom#1".to_string());
     let room2 = "someroom#2".to_string();
-    let roomNE = "someroom#42".to_string();
-    db.add_room(&room0, "hehe").await;
-    db.add_room(&room1, "haha").await;
-    db.add_room(&room2, "third room").await;
+    let room42 = "someroom#42".to_string();
+    db.add_room(&room0, "girls").await;
+    db.add_room(&room1, "boys").await;
+    db.add_room(&room2, "whatever").await;
+    db.add_room(&room42, "do not enter!").await;
     db.assign_room_to_house(&main_house, &room0).await;
-    db.assign_room_to_house(&main_house, &room1).await;
+    db.assign_room_to_house(&main_house, &room42).await;
     db.assign_room_to_house(&main_house, &room2).await;
+    db.assign_room_to_house(&main_house, &room1).await;
 
     println!("{}", style("getting info about rooms").yellow());
     db.info_about_room(&room0).await;
     db.info_about_all_rooms().await;
     db.info_about_house(&main_house).await;
-    db.get_all_rooms_in_house("dasda").await; // hardcoded
+    db.get_all_rooms_in_house(&main_house).await?; // hardcoded
     let dev0 = "device0".to_string();
     let dev1 = "device1".to_string();
-    let devNA = "device42".to_string();
+    let dev2 = "device2".to_string();
+    let dev3 = "device3".to_string();
+    let dev4 = "device4".to_string();
+    let dev5 = "device5".to_string();
+    let dev6 = "device6".to_string();
+    let dev7 = "device7".to_string();
     db.add_device(&dev0, &main_house, &room0).await;
     db.add_device(&dev1, &main_house, &room0).await;
-    db.get_all_devices_in_house("sadasd").await;
-    //     db.test_whether_room_exists(&roomNE).await;
-    //     db.test_whether_room_exists(&room1).await;
-    /*println!("{}", style("getting info about home").yellow());
-    }*/
+    db.add_device(&dev2, &main_house, &room0).await;
+    db.add_device(&dev3, &main_house, &room1).await;
+    db.add_device(&dev4, &main_house, &room2).await;
+    db.add_device(&dev5, &main_house, &room2).await;
+    db.add_device(&dev6, &main_house, &room42).await;
+    db.add_device(&dev7, &main_house, &room42).await;
+    db.get_all_devices_in_house(&main_house).await;
+    db.test_whether_room_exists(&room1).await;
+    println!("{}", style("-----modifying devices------").yellow());
+    db.activate_device(&main_house, &room0, &dev0, true).await?;
+    db.del_device(&dev2, &main_house, &room0).await?;
+    db.get_all_devices_in_house(&main_house).await;
+    db.change_device_info(&main_house, &room0, &dev0, "here is some info".to_string())
+        .await?;
+    println!("{}", db.get_device_info(&main_house, &room0, &dev0).await?);
     Ok(())
 }
 #[async_trait]
@@ -110,6 +120,14 @@ pub trait DbQueries: Send + Sync + std::fmt::Debug {
     async fn get_all_rooms_in_house(self, housename: &str) -> Result<String, ErrorDb>;
     async fn get_all_devices_in_house(self, housename: &str) -> Result<String, ErrorDb>;
     async fn test_whether_room_exists(self, roomname: &str) -> Result<bool, ErrorDb>;
+    async fn test_whether_house_exists(self, housename: &str) -> Result<bool, ErrorDb>;
+    async fn del_device(
+        self,
+        devname: &str,
+        housename: &str,
+        roomname: &str,
+    ) -> Result<(), ErrorDb>;
+
     async fn test_whether_dev_exists_in_room(
         self,
         devname: &str,
@@ -121,11 +139,45 @@ pub trait DbQueries: Send + Sync + std::fmt::Debug {
         housename: &str,
         roomname: &str,
     ) -> Result<(), ErrorDb>;
+    async fn activate_device(
+        self,
+        housename: &str,
+        roomname: &str,
+        devname: &str,
+        value: bool,
+    ) -> Result<String, ErrorDb>;
+    async fn change_device_info(
+        self,
+        housename: &str,
+        roomname: &str,
+        devname: &str,
+        info: String,
+    ) -> Result<(), ErrorDb>;
+    async fn get_device_info(
+        self,
+        housename: &str,
+        roomname: &str,
+        devname: &str,
+    ) -> Result<String, ErrorDb>;
 }
 #[derive(Debug, Error)]
 pub enum ErrorDb {
     #[error("error while executing query {0}")]
     ErrorQuery(String),
-    #[error("room name : {0}")]
+    #[error("not exists room name : {0}")]
     RoomNotExists(String),
+    #[error("device exists : {0} in room: {1}")]
+    DeviceAlreadyExists(String, String),
+    #[error("house with name exists: {0}")]
+    HouseAlreadyExists(String),
+    #[error("house with name not exists: {0}")]
+    HouseNotExists(String),
+    #[error("device {0} not exists in room {0}")]
+    DeviceNotExists(String, String),
+}
+
+impl From<sqlx::Error> for ErrorDb {
+    fn from(value: sqlx::Error) -> Self {
+        Self::ErrorQuery(value.to_string())
+    }
 }

@@ -37,13 +37,13 @@ pub mod implement {
     }
     #[derive(Clone, FromRow, Debug)]
     pub struct DevInRoom {
-        devid: i64,
-        devname: String,
-        attached_to_room: String,
-        attached_to_house: String,
-        info: String,
-        active: bool,
-        timestamp: String,
+        pub devid: i64,
+        pub devname: String,
+        pub attached_to_room: String,
+        pub attached_to_house: String,
+        pub info: String,
+        pub active: bool,
+        pub timestamp: String,
     }
 
     #[derive(Clone, FromRow, Debug)]
@@ -108,9 +108,7 @@ pub mod implement {
                 .bind(housename)
                 .execute(self)
                 .await?;
-            let out = format!(
-                "state of device {devname} in room {roomname} is {value}"
-            );
+            let out = format!("state of device {devname} in room {roomname} is {value}");
             tracing::info!("{out}");
             Ok(out)
         }

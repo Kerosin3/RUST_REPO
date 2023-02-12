@@ -111,9 +111,9 @@ async fn main() -> anyhow::Result<()> {
     db.activate_device(&main_house, &room0, &dev0, true).await?;
     db.del_device(&dev2, &main_house, &room0).await?;
     */
-    /*
-    db.get_all_devices_in_house("smarthouse#1").await?;
-    db.change_device_info(
+
+    &db.get_all_devices_in_house("smarthouse#1").await?;
+    &db.change_device_info(
         "smarthouse#1",
         "someroom#2",
         "device4",
@@ -125,13 +125,13 @@ async fn main() -> anyhow::Result<()> {
         db.get_device_info("smarthouse#1", "someroom#2", "device4")
             .await?
     );
-    tokio::spawn(async move {
-        imitate_termo_data_achange(&db, "smarthouse#1", "device4", "someroom#2").await
-    });
-    */
+    /*   tokio::spawn(async {
+        imitate_termo_data_achange(db, "smarthouse#1", "device4", "someroom#2").await
+    });*/
+
     ShouseGUI::run(Settings {
         antialiasing: true,
-        flags: &db,
+        flags: db,
         /// NOT LIVE LONG ENOGHT
         window: window::Settings {
             position: window::Position::Centered,
@@ -146,9 +146,9 @@ async fn main() -> anyhow::Result<()> {
     })?;
     Ok(())
 }
-
+/*
 async fn imitate_termo_data_achange(
-    db: &SqlitePool,
+    db: SqlitePool,
     housename: &str,
     devname: &str,
     roomname: &str,
@@ -162,7 +162,7 @@ async fn imitate_termo_data_achange(
         sleep(Duration::from_millis(100)).await;
     }
 }
-
+*/
 #[async_trait]
 pub trait DbQueries: Send + Sync + std::fmt::Debug {
     async fn add_house(self, housename: &str) -> Result<(), ErrorDb>;

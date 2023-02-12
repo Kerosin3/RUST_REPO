@@ -8,6 +8,7 @@ pub mod implement {
     use console::{style, Term};
     use sqlx::{migrate::MigrateDatabase, FromRow, Row, Sqlite, SqlitePool};
     use std::fmt::Write;
+    use std::sync::Arc;
     use std::thread;
     use std::time::Duration;
     use thiserror::Error;
@@ -64,17 +65,18 @@ pub mod implement {
     }
 
     #[async_trait]
-    impl DbQueries for &SqlitePool {
+    impl DbQueries for Arc<SqlitePool> {
+        /*
         async fn add_house(self, housename: &str) -> Result<(), ErrorDb> {
             tracing::info!("inserting house with name: {}", housename);
-            if self.test_whether_house_exists(housename).await? {
+            if self.clone().test_whether_house_exists(housename).await? {
                 // test existence
                 return Err(ErrorDb::HouseAlreadyExists(housename.to_owned()));
             }
             let query_str = "INSERT INTO smarthouse (housename) VALUES (?)".to_string();
             sqlx::query(&query_str)
                 .bind(housename)
-                .execute(self)
+                .execute(&*self.clone())
                 .await?;
             tracing::info!("added new house with name {}", housename);
             Ok(())
@@ -106,7 +108,7 @@ pub mod implement {
                 .bind(devname)
                 .bind(roomname)
                 .bind(housename)
-                .execute(self)
+                .execute(&*self)
                 .await?;
             let out = format!("state of device {devname} in room {roomname} is {value}");
             tracing::info!("{out}");
@@ -139,18 +141,19 @@ pub mod implement {
                 .bind(devname)
                 .bind(roomname)
                 .bind(housename)
-                .execute(self)
+                .execute(&*self)
                 .await?;
             tracing::info!("changed device {} info", devname);
             Ok(())
         }
+        */
         async fn get_device_info(
             self,
             housename: &str,
             roomname: &str,
             devname: &str,
         ) -> Result<String, ErrorDb> {
-            if !self.test_whether_house_exists(housename).await? {
+            /*   if !self.test_whether_house_exists(housename).await? {
                 return Err(ErrorDb::HouseNotExists(housename.to_owned()));
             }
             if !self.test_whether_room_exists(roomname).await? {
@@ -164,26 +167,26 @@ pub mod implement {
                     devname.to_owned(),
                     roomname.to_owned(),
                 ));
-            }
+            }*/
             let result = sqlx::query_as::<_, DevInfo>(
                 "SELECT info FROM devices WHERE attached_to_room=? AND attached_to_house=? AND devname=?",
             )
             .bind(roomname)
             .bind(housename)
             .bind(devname)
-            .fetch_one(self)
+            .fetch_one(&*self)
             .await?;
 
             Ok(result.info)
         }
-
+        /*
         async fn test_whether_room_exists(self, roomname: &str) -> Result<bool, ErrorDb> {
             match sqlx::query_as::<_, Existance>(
                 "SELECT roomname FROM rooms WHERE roomname=?",
                 //                "SELECT EXISTS(SELECT 1 FROM rooms WHERE roomname=? LIMIT 1)",/// ??????
             )
             .bind(roomname)
-            .fetch_one(self)
+            .fetch_one(&*self)
             .await
             {
                 Ok(_r) => {
@@ -208,7 +211,7 @@ pub mod implement {
                 "SELECT housename FROM smarthouse WHERE housename=?",
             )
             .bind(housename)
-            .fetch_one(self)
+            .fetch_one(&*self)
             .await
             {
                 Ok(_r) => {
@@ -252,7 +255,7 @@ pub mod implement {
                 .bind(devname)
                 .bind(roomname)
                 .bind(housename)
-                .execute(self)
+                .execute(&*self)
                 .await?;
             Ok(())
         }
@@ -285,7 +288,7 @@ pub mod implement {
                 .bind(false)
                 .bind(roomname)
                 .bind(housename)
-                .execute(self)
+                .execute(&*self)
                 .await
             {
                 Ok(_r) => {
@@ -314,7 +317,7 @@ pub mod implement {
             )
             .bind(roomname)
             .bind(devname)
-            .fetch_one(self)
+            .fetch_one(&*self)
             .await
             {
                 Ok(_r) => {
@@ -341,7 +344,7 @@ pub mod implement {
             match sqlx::query_as::<_, DevInRoom>(
                 "SELECT devid, devname, attached_to_house, attached_to_room, info, active, timestamp FROM devices"
             )
-            .fetch_all(self)
+            .fetch_all(&*self)
             .await
             {
                 Ok(_results) => {
@@ -375,12 +378,12 @@ pub mod implement {
                 "SELECT smarthouse.id,
                 smarthouse.housename,
                 rooms.roomname,
-                rooms.attached_to_house, 
+                rooms.attached_to_house,
                 rooms.info
-                FROM smarthouse 
+                FROM smarthouse
                 INNER JOIN rooms ON smarthouse.housename = rooms.attached_to_house",
             )
-            .fetch_all(self)
+            .fetch_all(&*self)
             .await
             {
                 Ok(_results) => {
@@ -410,7 +413,7 @@ pub mod implement {
             sqlx::query("UPDATE smarthouse SET active=? WHERE housename=? ")
                 .bind(val)
                 .bind(housename)
-                .execute(self)
+                .execute(&*self)
                 .await?;
             tracing::info!("state of house {} is {}", housename, val);
             Ok(())
@@ -421,7 +424,7 @@ pub mod implement {
             sqlx::query(&query_str)
                 .bind(roomname)
                 .bind(info)
-                .execute(self)
+                .execute(&*self)
                 .await?;
 
             tracing::info!("adding room {}", roomname);
@@ -435,7 +438,7 @@ pub mod implement {
                 "SELECT roomid, roomname, info, attached_to_house FROM rooms WHERE roomname=?",
             )
             .bind(roomname)
-            .fetch_one(self)
+            .fetch_one(&*self)
             .await
             {
                 Ok(_results) => {
@@ -473,7 +476,7 @@ pub mod implement {
             sqlx::query("UPDATE rooms SET attached_to_house=? WHERE roomname=? ")
                 .bind(housename)
                 .bind(roomname)
-                .execute(self)
+                .execute(&*self)
                 .await?;
             tracing::info!("assigning room {} to house {}", roomname, housename);
             Ok(())
@@ -483,7 +486,7 @@ pub mod implement {
             match sqlx::query_as::<_, RoomGeneric>(
                 "SELECT roomid, roomname, info, attached_to_house FROM rooms",
             )
-            .fetch_all(self)
+            .fetch_all(&*self)
             .await
             {
                 Ok(_results) => {
@@ -517,7 +520,7 @@ pub mod implement {
                 "SELECT id, housename, active FROM smarthouse WHERE housename=?",
             )
             .bind(house)
-            .fetch_one(self)
+            .fetch_one(&*self)
             .await
             {
                 Ok(_results) => {
@@ -537,5 +540,6 @@ pub mod implement {
                 }
             }
         }
+        */
     }
 }

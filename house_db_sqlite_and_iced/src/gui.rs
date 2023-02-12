@@ -20,9 +20,9 @@ pub mod gui_runner {
     }
 
     impl ShouseGUI {
-        fn newdbc(db: SqlitePool) -> Self {
+        fn newdbc(db: Arc<SqlitePool>) -> Self {
             Self {
-                db: Arc::new(db),
+                db: Arc::clone(&db),
                 val: 0,
                 textval: String::new(),
             }
@@ -78,7 +78,7 @@ pub mod gui_runner {
 
     impl Application for ShouseGUI {
         type Executor = executor::Default;
-        type Flags = SqlitePool;
+        type Flags = Arc<SqlitePool>;
         type Message = Msg;
         type Theme = Theme;
 
@@ -103,21 +103,25 @@ pub mod gui_runner {
                 }
                 Msg::AsyResq(r) => self.val = r,
                 Msg::AsyDB => {
-                    return Command::perform(
+                    /*                    return Command::perform(
                         get_all_devices_in_house(Arc::clone(&self.db), "smarthouse#1"),
                         |resp| {
                             println!("{}", style("got asyn response from db!").yellow());
                             Msg::AsyDbRes(resp.unwrap())
                         },
-                    );
+                    );*/
                     //NOT WORKING
-                    /*return Command::perform(
-                        Arc::clone(&self.db).get_all_devices_in_house("smarthouse#1"),
+                    return Command::perform(
+                        Arc::clone(&self.db).get_device_info(
+                            "smarthouse#1",
+                            "someroom#2",
+                            "device4",
+                        ),
                         |resp| {
                             println!("info: {resp:?}");
                             Msg::AsyDbRes(resp.unwrap())
                         },
-                    );*/
+                    );
                 }
                 Msg::AsyDbRes(resp) => self.textval = resp.to_owned(),
             }

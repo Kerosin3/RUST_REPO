@@ -123,18 +123,33 @@ async fn main() -> anyhow::Result<()> {
         )
         .await?;*/
     println!(
-        "{}",
-        db.clone()
-            .get_device_info("smarthouse#1", "someroom#2", "device4")
+        "0{}",
+        db.get_device_info("smarthouse#1", "someroom#2", "device4")
             .await?
     );
+    let db2 = Arc::clone(&db);
+    let handle = tokio::spawn(async move {
+        println!(
+            "1{}",
+            db2.get_device_info("smarthouse#1", "someroom#2", "device4")
+                .await
+                .unwrap()
+        );
+    });
+    handle.await.unwrap();
+    println!(
+        "0{}",
+        db.get_device_info("smarthouse#1", "someroom#2", "device4")
+            .await?
+    );
+
     /*   tokio::spawn(async {
         imitate_termo_data_achange(db, "smarthouse#1", "device4", "someroom#2").await
     });*/
 
     ShouseGUI::run(Settings {
         antialiasing: true,
-        flags: db.clone(),
+        flags: Arc::clone(&db),
         /// NOT LIVE LONG ENOGHT
         window: window::Settings {
             position: window::Position::Centered,
@@ -147,6 +162,7 @@ async fn main() -> anyhow::Result<()> {
         exit_on_close_request: true,
         try_opengles_first: false,
     })?;
+
     Ok(())
 }
 /*
@@ -178,7 +194,6 @@ pub trait DbQueries: Send + Sync + std::fmt::Debug {
      async fn get_all_rooms_in_house(self, housename: &str) -> Result<String, ErrorDb>;
      async fn get_all_devices_in_house(self, housename: &str) -> Result<String, ErrorDb>;
      async fn test_whether_room_exists(self, roomname: &str) -> Result<bool, ErrorDb>;
-     async fn test_whether_house_exists(self, housename: &str) -> Result<bool, ErrorDb>;
      async fn del_device(
          self,
          devname: &str,
@@ -213,11 +228,13 @@ pub trait DbQueries: Send + Sync + std::fmt::Debug {
      )/ -> Result<(), ErrorDb>;
     */
     async fn get_device_info(
-        self,
+        &self,
         housename: &str,
         roomname: &str,
         devname: &str,
     ) -> Result<String, ErrorDb>;
+
+    async fn test_whether_house_exists(&self, housename: &str) -> Result<bool, ErrorDb>;
 }
 #[derive(Debug, Error)]
 pub enum ErrorDb {

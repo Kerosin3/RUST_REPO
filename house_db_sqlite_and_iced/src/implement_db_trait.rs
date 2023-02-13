@@ -148,14 +148,15 @@ pub mod implement {
         }
         */
         async fn get_device_info(
-            self,
+            &self,
             housename: &str,
             roomname: &str,
             devname: &str,
         ) -> Result<String, ErrorDb> {
-            /*   if !self.test_whether_house_exists(housename).await? {
+            if !self.test_whether_house_exists(housename).await? {
                 return Err(ErrorDb::HouseNotExists(housename.to_owned()));
             }
+            /*
             if !self.test_whether_room_exists(roomname).await? {
                 return Err(ErrorDb::RoomNotExists(roomname.to_owned()));
             }
@@ -174,44 +175,44 @@ pub mod implement {
             .bind(roomname)
             .bind(housename)
             .bind(devname)
-            .fetch_one(&*self)
+            .fetch_one(&*self.clone())
             .await?;
 
             Ok(result.info)
         }
         /*
-        async fn test_whether_room_exists(self, roomname: &str) -> Result<bool, ErrorDb> {
-            match sqlx::query_as::<_, Existance>(
-                "SELECT roomname FROM rooms WHERE roomname=?",
-                //                "SELECT EXISTS(SELECT 1 FROM rooms WHERE roomname=? LIMIT 1)",/// ??????
-            )
-            .bind(roomname)
-            .fetch_one(&*self)
-            .await
-            {
-                Ok(_r) => {
-                    tracing::info!("room {} EXISTS! ", roomname);
-                    Ok(true)
-                }
-                Err(_e) => {
-                    let err = format!("{_e:?}"); // get error
-                    if err == *"RowNotFound" {
-                        tracing::info!("room {} NOT EXISTS! ", roomname);
-                        Ok(false)
-                    } else {
-                        tracing::error!("error while querring");
-                        Err(ErrorDb::ErrorQuery("error testing room ".to_owned()))
+                async fn test_whether_room_exists(self, roomname: &str) -> Result<bool, ErrorDb> {
+                    match sqlx::query_as::<_, Existance>(
+                        "SELECT roomname FROM rooms WHERE roomname=?",
+                        //                "SELECT EXISTS(SELECT 1 FROM rooms WHERE roomname=? LIMIT 1)",/// ??????
+                    )
+                    .bind(roomname)
+                    .fetch_one(&*self)
+                    .await
+                    {
+                        Ok(_r) => {
+                            tracing::info!("room {} EXISTS! ", roomname);
+                            Ok(true)
+                        }
+                        Err(_e) => {
+                            let err = format!("{_e:?}"); // get error
+                            if err == *"RowNotFound" {
+                                tracing::info!("room {} NOT EXISTS! ", roomname);
+                                Ok(false)
+                            } else {
+                                tracing::error!("error while querring");
+                                Err(ErrorDb::ErrorQuery("error testing room ".to_owned()))
+                            }
+                        }
                     }
                 }
-            }
-        }
-
-        async fn test_whether_house_exists(self, housename: &str) -> Result<bool, ErrorDb> {
+        */
+        async fn test_whether_house_exists(&self, housename: &str) -> Result<bool, ErrorDb> {
             match sqlx::query_as::<_, ExistanceHome>(
                 "SELECT housename FROM smarthouse WHERE housename=?",
             )
             .bind(housename)
-            .fetch_one(&*self)
+            .fetch_one(&*self.clone())
             .await
             {
                 Ok(_r) => {
@@ -230,6 +231,7 @@ pub mod implement {
                 }
             }
         }
+        /*
         async fn del_device(
             self,
             devname: &str,

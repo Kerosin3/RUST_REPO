@@ -112,11 +112,9 @@ pub mod gui_runner {
                     );*/
                     //NOT WORKING
                     return Command::perform(
-                        Arc::clone(&self.db).get_device_info(
-                            "smarthouse#1",
-                            "someroom#2",
-                            "device4",
-                        ),
+                        self.db
+                            .clone()
+                            .get_device_info("smarthouse#1", "someroom#2", "device4"),
                         |resp| {
                             println!("info: {resp:?}");
                             Msg::AsyDbRes(resp.unwrap())

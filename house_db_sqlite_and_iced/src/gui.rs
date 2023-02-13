@@ -7,7 +7,7 @@ pub mod gui_runner {
     use futures::executor::block_on;
     use iced::executor;
     use iced::theme::{self, Theme};
-    use iced::widget::{button, checkbox, column, row, text};
+    use iced::widget::{button, checkbox, column, row, text, text_input};
     use iced::{Alignment, Application, Color, Command, Element, Length, Sandbox, Settings};
     use sqlx::SqlitePool;
     use std::fmt::Write;
@@ -17,14 +17,18 @@ pub mod gui_runner {
         db: Arc<SqlitePool>,
         val: i32,
         textval: String,
+        counts: usize,
+        input_value: String,
     }
 
     impl ShouseGUI {
-        fn newdbc(db: Arc<SqlitePool>) -> Self {
+        fn newdbc(db: &Arc<SqlitePool>) -> Self {
             Self {
-                db: Arc::clone(&db),
+                db: Arc::clone(db),
                 val: 0,
+                counts: 0,
                 textval: String::new(),
+                input_value: String::new(),
             }
         }
     }
@@ -33,49 +37,17 @@ pub mod gui_runner {
         One,
         Two,
         Asy,
+        ButtonPressed,
         AsyResq(i32),
         AsyDB,
         AsyDbRes(String),
+        CloseConn,
+        InputChanged(String),
     }
     async fn testme() -> i32 {
         sleep(Duration::from_millis(100)).await;
         42424242
     }
-    //it works!
-    async fn get_all_devices_in_house(
-        db: Arc<SqlitePool>,
-        housename: &str,
-    ) -> Result<String, ErrorDb> {
-        match sqlx::query_as::<_, DevInRoom>(
-                "SELECT devid, devname, attached_to_house, attached_to_room, info, active, timestamp FROM devices"
-            )
-            .fetch_all(&*db) // ?????
-            .await
-            {
-                Ok(_results) => {
-                    let mut out = String::new();
-                    writeln!(out, "---info about all devices in house {housename} ---")
-                        .expect("error while writing to string");
-                    for r in _results {
-                        writeln!(
-                            out,
-                            "dev id [{}], dev name: {} room: {}, house: {} active:{} info: {}, data creation: {}",
-                            r.devid, &r.devname, &r.attached_to_room, &r.attached_to_house, r.active, &r.info,&r.timestamp
-                        )
-                        .expect("error while writing to string");
-                    }
-//                     println!("{}", style(&out).green());
-                    Ok(out)
-                }
-                Err(e) => {
-                    tracing::error!("error:{e} while getting info all devices in house");
-                    Err(ErrorDb::ErrorQuery(
-                        "error getiing info about all devices".to_owned(),
-                    ))
-                }
-            }
-    }
-
     impl Application for ShouseGUI {
         type Executor = executor::Default;
         type Flags = Arc<SqlitePool>;
@@ -83,7 +55,7 @@ pub mod gui_runner {
         type Theme = Theme;
 
         fn new(flags: Self::Flags) -> (Self, Command<Self::Message>) {
-            (ShouseGUI::newdbc(flags), Command::none())
+            (ShouseGUI::newdbc(&flags), Command::none())
         }
 
         fn title(&self) -> String {
@@ -102,6 +74,7 @@ pub mod gui_runner {
                     });
                 }
                 Msg::AsyResq(r) => self.val = r,
+                Msg::ButtonPressed => {}
                 Msg::AsyDB => {
                     /*                    return Command::perform(
                         get_all_devices_in_house(Arc::clone(&self.db), "smarthouse#1"),
@@ -112,16 +85,22 @@ pub mod gui_runner {
                     );*/
                     //NOT WORKING
                     return Command::perform(
-                        self.db
-                            .clone()
-                            .get_device_info("smarthouse#1", "someroom#2", "device4"),
-                        |resp| {
+                        {
+                            let x = Arc::clone(&self.db);
+                            async move {
+                                x.get_device_info("smarthouse#1", "someroom#2", "device4")
+                                    .await
+                            }
+                        },
+                        move |resp| {
                             println!("info: {resp:?}");
                             Msg::AsyDbRes(resp.unwrap())
                         },
                     );
                 }
                 Msg::AsyDbRes(resp) => self.textval = resp.to_owned(),
+                Msg::CloseConn => self.counts = Arc::strong_count(&self.db),
+                Msg::InputChanged(val) => self.textval = val,
             }
             Command::none()
         }
@@ -139,6 +118,13 @@ pub mod gui_runner {
                 .padding(10)
                 .style(theme::Button::Destructive)
                 .on_press(Msg::Two);
+            let close_connection = button("Close connection")
+                .width(Length::Units(65))
+                .height(Length::Units(65))
+                .padding(10)
+                .style(theme::Button::Destructive)
+                .on_press(Msg::CloseConn);
+
             let some_value = text(format!("value is {}", self.val))
                 .size(50)
                 .width(Length::Units(350));
@@ -148,7 +134,7 @@ pub mod gui_runner {
                 .style(theme::Button::Primary)
                 .padding(15)
                 .on_press(Msg::Asy);
-
+            let button1 = button("Submit").padding(10).on_press(Msg::ButtonPressed);
             let device_info_button = button("get device info")
                 .width(Length::Units(65))
                 .height(Length::Units(65))
@@ -160,12 +146,24 @@ pub mod gui_runner {
                 .width(Length::Fill)
                 .height(Length::Fill)
                 .style(theme::Text::Color(Color::BLACK));
+            let s_counts = text(self.counts.to_owned())
+                .size(13)
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .style(theme::Text::Color(Color::BLACK));
+            let text_input = text_input("devname:", &self.input_value, Msg::InputChanged)
+                .padding(10)
+                .size(50);
             column![
                 add_one,
                 min_one,
+                text_input,
                 row![test_async_assign, some_value],
                 device_info_button,
-                dev_info
+                dev_info,
+                close_connection,
+                s_counts,
+                button1
             ]
             .spacing(10)
             .align_items(Alignment::Start)

@@ -13,12 +13,19 @@ pub mod gui_runner {
     use std::fmt::Write;
     use std::sync::Arc;
     use tokio::time::{sleep, Duration};
+
+    #[derive(Debug, Clone, Default)]
+    struct SearchStruct {
+        dev: String,
+        room: String,
+        house: String,
+    }
     pub struct ShouseGUI {
         db: Arc<SqlitePool>,
         val: i32,
         textval: String,
         counts: usize,
-        input_value: String,
+        search: SearchStruct,
     }
 
     impl ShouseGUI {
@@ -28,7 +35,7 @@ pub mod gui_runner {
                 val: 0,
                 counts: 0,
                 textval: String::new(),
-                input_value: String::new(),
+                search: Default::default(),
             }
         }
     }
@@ -42,7 +49,7 @@ pub mod gui_runner {
         AsyDB,
         AsyDbRes(String),
         CloseConn,
-        InputChanged(String),
+        InputChanged(SearchStruct),
     }
     async fn testme() -> i32 {
         sleep(Duration::from_millis(100)).await;
@@ -76,31 +83,31 @@ pub mod gui_runner {
                 Msg::AsyResq(r) => self.val = r,
                 Msg::ButtonPressed => {}
                 Msg::AsyDB => {
-                    /*                    return Command::perform(
-                        get_all_devices_in_house(Arc::clone(&self.db), "smarthouse#1"),
-                        |resp| {
-                            println!("{}", style("got asyn response from db!").yellow());
-                            Msg::AsyDbRes(resp.unwrap())
-                        },
-                    );*/
-                    //NOT WORKING
                     return Command::perform(
                         {
                             let x = Arc::clone(&self.db);
+                            let dev = self.search.dev.to_owned();
+                            let room = self.search.room.to_owned();
+                            let house = self.search.house.to_owned();
                             async move {
-                                x.get_device_info("smarthouse#1", "someroom#2", "device4")
+                                x.get_device_info("smarthouse#1", "someroom#2", &dev)
+                                    //                                 x.get_device_info("smarthouse#1", "someroom#2", "device4")
                                     .await
                             }
                         },
                         move |resp| {
                             println!("info: {resp:?}");
+                            match resp {
+                                Ok(r) => return Msg::AsyDbRes(r),
+                                Err(_e) => return Msg::AsyDbRes("Not such device".to_owned()),
+                            }
                             Msg::AsyDbRes(resp.unwrap())
                         },
                     );
                 }
                 Msg::AsyDbRes(resp) => self.textval = resp.to_owned(),
                 Msg::CloseConn => self.counts = Arc::strong_count(&self.db),
-                Msg::InputChanged(val) => self.textval = val,
+                Msg::InputChanged(val) =>{ self.search.dev = val,
             }
             Command::none()
         }
@@ -125,7 +132,7 @@ pub mod gui_runner {
                 .style(theme::Button::Destructive)
                 .on_press(Msg::CloseConn);
 
-            let some_value = text(format!("value is {}", self.val))
+            let some_value = text(format!("value is :{}", self.val))
                 .size(50)
                 .width(Length::Units(350));
             let test_async_assign = button("Assign async")
@@ -136,13 +143,29 @@ pub mod gui_runner {
                 .on_press(Msg::Asy);
             let button1 = button("Submit").padding(10).on_press(Msg::ButtonPressed);
             let device_info_button = button("get device info")
-                .width(Length::Units(65))
+                .width(Length::Units(100))
                 .height(Length::Units(65))
                 .style(theme::Button::Primary)
                 .padding(15)
                 .on_press(Msg::AsyDB);
+            let dev_search = text(format!("dev to search: {}", self.search.dev.to_owned()))
+                .size(50)
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .style(theme::Text::Color(Color::BLACK));
+            let room_search = text(format!("room to search: {}", self.search.room.to_owned()))
+                .size(50)
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .style(theme::Text::Color(Color::BLACK));
+            let house_search = text(format!("house to search: {}", self.search.house.to_owned()))
+                .size(50)
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .style(theme::Text::Color(Color::BLACK));
+
             let dev_info = text(self.textval.to_owned())
-                .size(13)
+                .size(50)
                 .width(Length::Fill)
                 .height(Length::Fill)
                 .style(theme::Text::Color(Color::BLACK));
@@ -151,16 +174,25 @@ pub mod gui_runner {
                 .width(Length::Fill)
                 .height(Length::Fill)
                 .style(theme::Text::Color(Color::BLACK));
-            let text_input = text_input("devname:", &self.input_value, Msg::InputChanged)
+            let input_size = 30_u16;
+            let dev_input = text_input("devname:", &self.search, Msg::InputChanged(dev))
                 .padding(10)
-                .size(50);
+                .size(input_size);
+            let house_input = text_input("house:", &self.search.house, Msg::InputChanged)
+                .padding(10)
+                .size(input_size);
+            let room_input = text_input("room:", &self.search.room, Msg::InputChanged)
+                .padding(10)
+                .size(input_size);
+
             column![
                 add_one,
                 min_one,
-                text_input,
                 row![test_async_assign, some_value],
-                device_info_button,
+                row![dev_input, house_input, room_input],
                 dev_info,
+                device_info_button,
+                dev_search,
                 close_connection,
                 s_counts,
                 button1

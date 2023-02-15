@@ -184,6 +184,13 @@ async fn imitate_termo_data_achange(
 */
 #[async_trait]
 pub trait DbQueries: Send + Sync + std::fmt::Debug {
+    async fn test_whether_room_exists(&self, roomname: &str) -> Result<bool, ErrorDb>;
+    async fn test_whether_dev_exists_in_room(
+        &self,
+        devname: &str,
+        roomname: &str,
+    ) -> Result<bool, ErrorDb>;
+
     /* async fn add_house(self, housename: &str) -> Result<(), ErrorDb>;
      async fn activate_house(self, housename: &str, val: bool) -> Result<(), ErrorDb>;
      async fn add_room(self, roomname: &str, info: &str) -> Result<(), ErrorDb>;
@@ -193,7 +200,6 @@ pub trait DbQueries: Send + Sync + std::fmt::Debug {
      async fn info_about_all_rooms(self) -> Result<String, ErrorDb>;
      async fn get_all_rooms_in_house(self, housename: &str) -> Result<String, ErrorDb>;
      async fn get_all_devices_in_house(self, housename: &str) -> Result<String, ErrorDb>;
-     async fn test_whether_room_exists(self, roomname: &str) -> Result<bool, ErrorDb>;
      async fn del_device(
          self,
          devname: &str,
@@ -201,12 +207,7 @@ pub trait DbQueries: Send + Sync + std::fmt::Debug {
          roomname: &str,
      ) -> Result<(), ErrorDb>;
 
-     async fn test_whether_dev_exists_in_room(
-         self,
-         devname: &str,
-         roomname: &str,
-     ) -> Result<bool, ErrorDb>;
-     async fn add_device(
+          async fn add_device(
          self,
          devname: &str,
          housename: &str,

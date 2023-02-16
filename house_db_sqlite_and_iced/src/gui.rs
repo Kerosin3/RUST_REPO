@@ -9,23 +9,22 @@ pub mod gui_runner {
     use iced::theme::{self, Theme};
     use iced::widget::{button, checkbox, column, row, text, text_input};
     use iced::{Alignment, Application, Color, Command, Element, Length, Sandbox, Settings};
+    use rgb::RGBA8;
     use sqlx::SqlitePool;
     use std::fmt::Write;
     use std::sync::Arc;
     use tokio::time::{sleep, Duration};
 
     #[derive(Debug, Clone, Default)]
-    struct SearchStruct {
-        dev: String,
-        room: String,
-        house: String,
-    }
+    struct SearchStruct {}
     pub struct ShouseGUI {
         db: Arc<SqlitePool>,
         val: i32,
         textval: String,
         counts: usize,
-        search: SearchStruct,
+        dev_s: String,
+        room_s: String,
+        house_s: String,
     }
 
     impl ShouseGUI {
@@ -35,7 +34,9 @@ pub mod gui_runner {
                 val: 0,
                 counts: 0,
                 textval: String::new(),
-                search: Default::default(),
+                dev_s: String::new(),
+                house_s: "smarthouse#1".to_string(),
+                room_s: "someroom#2".to_string(),
             }
         }
     }
@@ -49,11 +50,13 @@ pub mod gui_runner {
         AsyDB,
         AsyDbRes(String),
         CloseConn,
-        InputChanged(SearchStruct),
+        HouseAssigned(String),
+        DevAssigned(String),
+        RoomAssigned(String),
     }
     async fn testme() -> i32 {
         sleep(Duration::from_millis(100)).await;
-        42424242
+        100
     }
     impl Application for ShouseGUI {
         type Executor = executor::Default;
@@ -86,11 +89,11 @@ pub mod gui_runner {
                     return Command::perform(
                         {
                             let x = Arc::clone(&self.db);
-                            let dev = self.search.dev.to_owned();
-                            let room = self.search.room.to_owned();
-                            let house = self.search.house.to_owned();
+                            let dev = self.dev_s.to_owned();
+                            let room = self.room_s.to_owned();
+                            let house = self.house_s.to_owned();
                             async move {
-                                x.get_device_info("smarthouse#1", "someroom#2", &dev)
+                                x.get_device_info(&house, &room, &dev)
                                     //                                 x.get_device_info("smarthouse#1", "someroom#2", "device4")
                                     .await
                             }
@@ -101,17 +104,17 @@ pub mod gui_runner {
                                 Ok(r) => return Msg::AsyDbRes(r),
                                 Err(_e) => return Msg::AsyDbRes("Not such device".to_owned()),
                             }
-                            Msg::AsyDbRes(resp.unwrap())
                         },
                     );
                 }
                 Msg::AsyDbRes(resp) => self.textval = resp.to_owned(),
                 Msg::CloseConn => self.counts = Arc::strong_count(&self.db),
-                Msg::InputChanged(val) =>{ self.search.dev = val,
+                Msg::DevAssigned(val) => self.dev_s = val,
+                Msg::RoomAssigned(val) => self.room_s = val,
+                Msg::HouseAssigned(val) => self.house_s = val,
             }
             Command::none()
         }
-
         fn view(&self) -> Element<Self::Message> {
             let add_one = button("Add One")
                 .width(Length::Units(65))
@@ -148,40 +151,48 @@ pub mod gui_runner {
                 .style(theme::Button::Primary)
                 .padding(15)
                 .on_press(Msg::AsyDB);
-            let dev_search = text(format!("dev to search: {}", self.search.dev.to_owned()))
-                .size(50)
+
+            let input_size_s = 30_u16;
+            let dev_search = text(format!("dev to search: \n{}", self.dev_s.to_owned()))
+                .size(input_size_s)
                 .width(Length::Fill)
                 .height(Length::Fill)
                 .style(theme::Text::Color(Color::BLACK));
-            let room_search = text(format!("room to search: {}", self.search.room.to_owned()))
-                .size(50)
+            let room_search = text(format!("room to search: \n{}", self.room_s.to_owned()))
+                .size(input_size_s)
                 .width(Length::Fill)
                 .height(Length::Fill)
                 .style(theme::Text::Color(Color::BLACK));
-            let house_search = text(format!("house to search: {}", self.search.house.to_owned()))
-                .size(50)
+            let house_search = text(format!("house to search: \n{}", self.house_s.to_owned()))
+                .size(input_size_s)
                 .width(Length::Fill)
                 .height(Length::Fill)
                 .style(theme::Text::Color(Color::BLACK));
 
             let dev_info = text(self.textval.to_owned())
-                .size(50)
-                .width(Length::Fill)
-                .height(Length::Fill)
+                .size(14)
+                .width(Length::Units(150))
+                .height(Length::Units(50))
                 .style(theme::Text::Color(Color::BLACK));
+            /*.style(theme::Text::Color(Color {
+                r: 17.5,
+                g: 255.5,
+                b: 65.4,
+                a: 1.0,
+            }));*/
             let s_counts = text(self.counts.to_owned())
-                .size(13)
+                .size(40)
                 .width(Length::Fill)
                 .height(Length::Fill)
                 .style(theme::Text::Color(Color::BLACK));
             let input_size = 30_u16;
-            let dev_input = text_input("devname:", &self.search, Msg::InputChanged(dev))
+            let dev_input = text_input("devname:", &self.dev_s, Msg::DevAssigned)
                 .padding(10)
                 .size(input_size);
-            let house_input = text_input("house:", &self.search.house, Msg::InputChanged)
+            let house_input = text_input("house:", &self.house_s, Msg::HouseAssigned)
                 .padding(10)
                 .size(input_size);
-            let room_input = text_input("room:", &self.search.room, Msg::InputChanged)
+            let room_input = text_input("room:", &self.room_s, Msg::RoomAssigned)
                 .padding(10)
                 .size(input_size);
 
@@ -190,9 +201,9 @@ pub mod gui_runner {
                 min_one,
                 row![test_async_assign, some_value],
                 row![dev_input, house_input, room_input],
-                dev_info,
                 device_info_button,
-                dev_search,
+                dev_info,
+                row![dev_search, house_search, room_search],
                 close_connection,
                 s_counts,
                 button1

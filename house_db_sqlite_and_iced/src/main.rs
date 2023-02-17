@@ -45,9 +45,9 @@ async fn main() -> anyhow::Result<()> {
         println!("Database already exists");
     }
     let db = Arc::new(SqlitePool::connect(DB_URL).await.unwrap());
-    let crate_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
+    let _crate_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
     /*
-    let migrations = std::path::Path::new(&crate_dir).join("./migrations");
+    let migrations = std::path::Path::new(&_crate_dir).join("./migrations");
     let migration_results = sqlx::migrate::Migrator::new(migrations)
         .await
         .unwrap()
@@ -143,14 +143,14 @@ async fn main() -> anyhow::Result<()> {
             .await?
     );
 
-    /*   tokio::spawn(async {
-        imitate_termo_data_achange(db, "smarthouse#1", "device4", "someroom#2").await
-    });*/
+    let db_cpy_imitate = Arc::clone(&db);
+    tokio::spawn(async {
+        imitate_termo_data_achange(db_cpy_imitate, "smarthouse#1", "device5", "someroom#2").await
+    });
 
     ShouseGUI::run(Settings {
         antialiasing: true,
         flags: Arc::clone(&db),
-        /// NOT LIVE LONG ENOGHT
         window: window::Settings {
             position: window::Position::Centered,
             ..window::Settings::default()
@@ -165,23 +165,27 @@ async fn main() -> anyhow::Result<()> {
 
     Ok(())
 }
-/*
+
 async fn imitate_termo_data_achange(
-    db: SqlitePool,
+    db: Arc<SqlitePool>,
     housename: &str,
     devname: &str,
     roomname: &str,
 ) {
     let mut rng: StdRng = SeedableRng::from_entropy();
     loop {
-        let val = rng.gen_range(30..90).to_string();
+        let val = [
+            "current temperature is :",
+            rng.gen_range(30..90).to_string().as_str(),
+        ]
+        .concat();
         db.change_device_info(housename, roomname, devname, val)
             .await
             .unwrap();
-        sleep(Duration::from_millis(100)).await;
+        sleep(Duration::from_millis(1000)).await;
     }
 }
-*/
+
 #[async_trait]
 pub trait DbQueries: Send + Sync + std::fmt::Debug {
     async fn test_whether_room_exists(&self, roomname: &str) -> Result<bool, ErrorDb>;
@@ -191,43 +195,43 @@ pub trait DbQueries: Send + Sync + std::fmt::Debug {
         roomname: &str,
     ) -> Result<bool, ErrorDb>;
 
-    /* async fn add_house(self, housename: &str) -> Result<(), ErrorDb>;
-     async fn activate_house(self, housename: &str, val: bool) -> Result<(), ErrorDb>;
-     async fn add_room(self, roomname: &str, info: &str) -> Result<(), ErrorDb>;
-     async fn assign_room_to_house(self, housename: &str, roomname: &str) -> Result<(), ErrorDb>;
-     async fn info_about_room(self, roomname: &str) -> Result<String, ErrorDb>;
-     async fn info_about_house(self, house: &str) -> Result<String, ErrorDb>;
-     async fn info_about_all_rooms(self) -> Result<String, ErrorDb>;
-     async fn get_all_rooms_in_house(self, housename: &str) -> Result<String, ErrorDb>;
-     async fn get_all_devices_in_house(self, housename: &str) -> Result<String, ErrorDb>;
-     async fn del_device(
-         self,
-         devname: &str,
-         housename: &str,
-         roomname: &str,
-     ) -> Result<(), ErrorDb>;
+    async fn add_house(self, housename: &str) -> Result<(), ErrorDb>;
+    async fn activate_house(self, housename: &str, val: bool) -> Result<(), ErrorDb>;
+    async fn add_room(self, roomname: &str, info: &str) -> Result<(), ErrorDb>;
+    async fn assign_room_to_house(self, housename: &str, roomname: &str) -> Result<(), ErrorDb>;
+    async fn info_about_room(self, roomname: &str) -> Result<String, ErrorDb>;
+    async fn info_about_house(self, house: &str) -> Result<String, ErrorDb>;
+    async fn info_about_all_rooms(self) -> Result<String, ErrorDb>;
+    async fn get_all_rooms_in_house(self, housename: &str) -> Result<String, ErrorDb>;
+    async fn get_all_devices_in_house(self, housename: &str) -> Result<String, ErrorDb>;
+    async fn del_device(
+        self,
+        devname: &str,
+        housename: &str,
+        roomname: &str,
+    ) -> Result<(), ErrorDb>;
 
-          async fn add_device(
-         self,
-         devname: &str,
-         housename: &str,
-         roomname: &str,
-     ) -> Result<(), ErrorDb>;
-     async fn activate_device(
-         self,
-         housename: &str,
-         roomname: &str,
-         devname: &str,
-         value: bool,
-     ) -> Result<String, ErrorDb>;
-     async fn change_device_info(
-         self,
-         housename: &str,
-         roomname: &str,
-         devname: &str,
-         info: String,
-     )/ -> Result<(), ErrorDb>;
-    */
+    async fn add_device(
+        self,
+        devname: &str,
+        housename: &str,
+        roomname: &str,
+    ) -> Result<(), ErrorDb>;
+    async fn activate_device(
+        self,
+        housename: &str,
+        roomname: &str,
+        devname: &str,
+        value: bool,
+    ) -> Result<String, ErrorDb>;
+
+    async fn change_device_info(
+        &self,
+        housename: &str,
+        roomname: &str,
+        devname: &str,
+        info: String,
+    ) -> Result<(), ErrorDb>;
     async fn get_device_info(
         &self,
         housename: &str,

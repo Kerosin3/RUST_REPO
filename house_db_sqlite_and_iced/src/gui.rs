@@ -9,7 +9,6 @@ pub mod gui_runner {
     use iced::theme::{self, Theme};
     use iced::widget::{button, checkbox, column, row, text, text_input};
     use iced::{Alignment, Application, Color, Command, Element, Length, Sandbox, Settings};
-    use rgb::RGBA8;
     use sqlx::SqlitePool;
     use std::fmt::Write;
     use std::sync::Arc;
@@ -101,13 +100,13 @@ pub mod gui_runner {
                         move |resp| {
                             println!("info: {resp:?}");
                             match resp {
-                                Ok(r) => return Msg::AsyDbRes(r),
-                                Err(_e) => return Msg::AsyDbRes("Not such device".to_owned()),
+                                Ok(r) => Msg::AsyDbRes(r),
+                                Err(_e) => Msg::AsyDbRes("Not such device".to_owned()),
                             }
                         },
                     );
                 }
-                Msg::AsyDbRes(resp) => self.textval = resp.to_owned(),
+                Msg::AsyDbRes(resp) => self.textval = resp,
                 Msg::CloseConn => self.counts = Arc::strong_count(&self.db),
                 Msg::DevAssigned(val) => self.dev_s = val,
                 Msg::RoomAssigned(val) => self.room_s = val,
@@ -170,8 +169,8 @@ pub mod gui_runner {
                 .style(theme::Text::Color(Color::BLACK));
 
             let dev_info = text(self.textval.to_owned())
-                .size(14)
-                .width(Length::Units(150))
+                .size(25)
+                .width(Length::Units(200))
                 .height(Length::Units(50))
                 .style(theme::Text::Color(Color::BLACK));
             /*.style(theme::Text::Color(Color {
@@ -211,7 +210,6 @@ pub mod gui_runner {
             .spacing(10)
             .align_items(Alignment::Start)
             .into()
-            //             "Hello, world!".into()
         }
     }
 }

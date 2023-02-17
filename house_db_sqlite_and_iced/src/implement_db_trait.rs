@@ -66,7 +66,6 @@ pub mod implement {
 
     #[async_trait]
     impl DbQueries for Arc<SqlitePool> {
-        /*
         async fn add_house(self, housename: &str) -> Result<(), ErrorDb> {
             tracing::info!("inserting house with name: {}", housename);
             if self.clone().test_whether_house_exists(housename).await? {
@@ -115,7 +114,7 @@ pub mod implement {
             Ok(out)
         }
         async fn change_device_info(
-            self,
+            &self,
             housename: &str,
             roomname: &str,
             devname: &str,
@@ -141,12 +140,12 @@ pub mod implement {
                 .bind(devname)
                 .bind(roomname)
                 .bind(housename)
-                .execute(&*self)
+                .execute(&*self.clone())
                 .await?;
             tracing::info!("changed device {} info", devname);
             Ok(())
         }
-        */
+
         async fn get_device_info(
             &self,
             housename: &str,
@@ -229,84 +228,82 @@ pub mod implement {
                 }
             }
         }
-        /*
-                async fn del_device(
-                    self,
-                    devname: &str,
-                    housename: &str, // not checked
-                    roomname: &str,  // checkd
-                ) -> Result<(), ErrorDb> {
-                    if !self.test_whether_house_exists(housename).await? {
-                        return Err(ErrorDb::HouseNotExists(housename.to_owned()));
-                    }
-                    if !self.test_whether_room_exists(roomname).await? {
-                        return Err(ErrorDb::RoomNotExists(roomname.to_owned()));
-                    }
-                    if !self
-                        .test_whether_dev_exists_in_room(devname, roomname)
-                        .await?
-                    {
-                        return Err(ErrorDb::DeviceNotExists(
-                            devname.to_owned(),
-                            roomname.to_owned(),
-                        ));
-                    }
-                    sqlx::query("DELETE FROM devices WHERE devname=? AND attached_to_room=? AND attached_to_house=?")
+        async fn del_device(
+            self,
+            devname: &str,
+            housename: &str, // not checked
+            roomname: &str,  // checkd
+        ) -> Result<(), ErrorDb> {
+            if !self.test_whether_house_exists(housename).await? {
+                return Err(ErrorDb::HouseNotExists(housename.to_owned()));
+            }
+            if !self.test_whether_room_exists(roomname).await? {
+                return Err(ErrorDb::RoomNotExists(roomname.to_owned()));
+            }
+            if !self
+                .test_whether_dev_exists_in_room(devname, roomname)
+                .await?
+            {
+                return Err(ErrorDb::DeviceNotExists(
+                    devname.to_owned(),
+                    roomname.to_owned(),
+                ));
+            }
+            sqlx::query("DELETE FROM devices WHERE devname=? AND attached_to_room=? AND attached_to_house=?")
                         .bind(devname)
                         .bind(roomname)
                         .bind(housename)
                         .execute(&*self)
                         .await?;
+            Ok(())
+        }
+        async fn add_device(
+            self,
+            devname: &str,
+            housename: &str, // not checked
+            roomname: &str,  // checkd
+        ) -> Result<(), ErrorDb> {
+            if !self.test_whether_house_exists(housename).await? {
+                return Err(ErrorDb::HouseNotExists(housename.to_owned()));
+            }
+            if !self.test_whether_room_exists(roomname).await? {
+                return Err(ErrorDb::RoomNotExists(roomname.to_owned()));
+            }
+            if self
+                .test_whether_dev_exists_in_room(devname, roomname)
+                .await?
+            {
+                return Err(ErrorDb::DeviceAlreadyExists(
+                    devname.to_owned(),
+                    roomname.to_owned(),
+                ));
+            }
+
+            let query_str = "INSERT INTO devices (devname, info, active, attached_to_room, attached_to_house ) VALUES (?,?,?,?,?)".to_string();
+            match sqlx::query(&query_str)
+                .bind(devname)
+                .bind("not initialized")
+                .bind(false)
+                .bind(roomname)
+                .bind(housename)
+                .execute(&*self)
+                .await
+            {
+                Ok(_r) => {
+                    tracing::info!(
+                        "adding device:{} to room:{}, to house:{}",
+                        devname,
+                        roomname,
+                        housename
+                    );
                     Ok(())
                 }
-                async fn add_device(
-                    self,
-                    devname: &str,
-                    housename: &str, // not checked
-                    roomname: &str,  // checkd
-                ) -> Result<(), ErrorDb> {
-                    if !self.test_whether_house_exists(housename).await? {
-                        return Err(ErrorDb::HouseNotExists(housename.to_owned()));
-                    }
-                    if !self.test_whether_room_exists(roomname).await? {
-                        return Err(ErrorDb::RoomNotExists(roomname.to_owned()));
-                    }
-                    if self
-                        .test_whether_dev_exists_in_room(devname, roomname)
-                        .await?
-                    {
-                        return Err(ErrorDb::DeviceAlreadyExists(
-                            devname.to_owned(),
-                            roomname.to_owned(),
-                        ));
-                    }
-
-                    let query_str = "INSERT INTO devices (devname, info, active, attached_to_room, attached_to_house ) VALUES (?,?,?,?,?)".to_string();
-                    match sqlx::query(&query_str)
-                        .bind(devname)
-                        .bind("not initialized")
-                        .bind(false)
-                        .bind(roomname)
-                        .bind(housename)
-                        .execute(&*self)
-                        .await
-                    {
-                        Ok(_r) => {
-                            tracing::info!(
-                                "adding device:{} to room:{}, to house:{}",
-                                devname,
-                                roomname,
-                                housename
-                            );
-                            Ok(())
-                        }
-                        Err(e) => {
-                            tracing::error!("error:{e} while adding device {}", devname);
-                            Err(ErrorDb::ErrorQuery("error adding device".to_owned()))
-                        }
-                    }
+                Err(e) => {
+                    tracing::error!("error:{e} while adding device {}", devname);
+                    Err(ErrorDb::ErrorQuery("error adding device".to_owned()))
                 }
-        */
+            }
+        }
         async fn test_whether_dev_exists_in_room(
             &self,
             devname: &str,
@@ -336,7 +333,6 @@ pub mod implement {
                 }
             }
         }
-        /*
         async fn get_all_devices_in_house(self, housename: &str) -> Result<String, ErrorDb> {
             if !self.test_whether_house_exists(housename).await? {
                 return Err(ErrorDb::HouseNotExists(housename.to_string()));
@@ -540,6 +536,5 @@ pub mod implement {
                 }
             }
         }
-        */
     }
 }

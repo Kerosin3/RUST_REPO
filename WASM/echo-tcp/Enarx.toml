@@ -1,0 +1,17 @@
+#steward = "https://attest.profian.com"
+
+[[files]]
+kind = "stdin"
+
+[[files]]
+kind = "stdout"
+
+[[files]]
+kind = "stderr"
+
+[[files]]
+name = "LISTEN"
+kind = "listen"
+port = 10010
+prot = "tcp"
+#prot = "tls"

@@ -1,0 +1,12 @@
+[package]
+name = "strategy_pattern"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+figlet-rs = "0.1.5"
+lipsum = "0.8.2"
+prettytable-rs = "0.10.0"
+

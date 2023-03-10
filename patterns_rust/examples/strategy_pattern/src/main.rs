@@ -1,36 +1,37 @@
-#[macro_use]
-extern crate prettytable;
 mod modules;
 use figlet_rs::FIGfont;
-use modules::external::rune;
-use prettytable::{Cell, Row, Table};
-
+// rust strategy pattern example
 fn main() {
-    //   rune(a);
-    // create table
-    let mut table = Table::new();
-    table.add_row(row!["ABC", "DEFG", "HIJKLMN"]);
-    table.add_row(row!["foobar", "bar", "foo"]);
-    let x = "example".to_string();
-    let custom_font = FIGfont::from_file("resources/larry3d.flf").unwrap();
-    let figure = custom_font.convert(x.as_str());
-    assert!(figure.is_some());
-    println!("{}", figure.unwrap());
-    //
-    let custom_font = FIGfont::from_file("resources/isometric1.flf").unwrap();
-    let figure = custom_font.convert(x.as_str());
-    assert!(figure.is_some());
-    println!("{}", figure.unwrap());
-    //
-    let custom_font = FIGfont::from_file("resources/univers.flf").unwrap();
-    let figure = custom_font.convert(x.as_str());
-    assert!(figure.is_some());
-    let a = figure.unwrap();
-    println!("{}", a);
-
-    table.printstd();
+    let x = String::from("example"); // create example string
+                                     // use default font formatter
+    let report1 = Report::generate(DefaultFont, x.to_owned());
+    println!("{}", report1);
+    // use custom font 1 formatter realization
+    let report2 = Report::generate(modules::mod2::implementv1::CustomFont1, x.to_owned());
+    println!("{}", report2);
+    // use custom font 2 formatter realization
+    let report3 = Report::generate(modules::mod1::implementv1::CustomFont2, x);
+    println!("{}", report3);
 }
 
-trait Formatter {
+// declare public api
+pub trait Formatter {
     fn format(&self, data: String) -> String;
+}
+struct Report;
+impl Report {
+    pub fn generate<T: Formatter>(fmt: T, data: String) -> String {
+        fmt.format(data)
+    }
+}
+// default font
+struct DefaultFont;
+impl Formatter for DefaultFont {
+    fn format(&self, data: String) -> String {
+        let custom_font = FIGfont::from_file("resources/larry3d.flf")
+            .expect("please run cargo from this example root folder");
+        let figure = custom_font.convert(data.as_str());
+
+        format!("{}", figure.expect("error painting figure"))
+    }
 }

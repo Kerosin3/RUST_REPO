@@ -1,0 +1,17 @@
+[package]
+name = "tokio-http"
+version = "0.2.0"
+publish = false
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1.24.2", features = ["net", "rt", "macros"] }
+tokio-util = { version = "0.7.4", features = ["codec"] }
+tokio-stream = "0.1.11"
+
+bytes = "1.0.0"
+futures = { version = "0.3.0", features = ["thread-pool"]}
+
+http = "0.2"
+httparse = "1.0"
+httpdate = "1.0"

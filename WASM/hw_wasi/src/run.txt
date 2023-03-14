@@ -1,0 +1,1 @@
+wasmtime_exp  --mapdir /helloworld::. hw_wasi.wasm

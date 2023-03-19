@@ -1,5 +1,6 @@
 [workspace]
 members=[
 "xtask",
+"WASI/*",
 ]
 exclude=["tests/test2","misc/","dynamic_smart_house/"] 

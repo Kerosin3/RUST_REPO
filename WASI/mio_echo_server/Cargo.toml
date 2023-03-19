@@ -1,0 +1,15 @@
+[package]
+name = "mio_wasi_example"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+chrono = "0.4.24"
+fern = "0.6.1"
+log = "0.4.17"
+smallvec = "1.10.0"
+mio = { version = "0.8.3", features = ["os-poll", "net"], default-features = false }
+anyhow = "1.0.70"
+console = "0.15.5"

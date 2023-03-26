@@ -1,0 +1,17 @@
+[package]
+name = "wasm3_rpc_example"
+version = "1.1.0"
+edition = "2021"
+
+[dependencies]
+wapc = "1.1.0" 
+wasm3 = { version = "0.3.1", features = ["build-bindgen"] }
+log = "0.4.11"
+thiserror = "1.0"
+parking_lot = "0.12"
+once_cell = "1.9"
+env_logger = "0.10.0"
+serde = { version = "1.0", features = ["derive"] }
+#wapc-codec = "1.1.0"
+wapc-codec = {path = "../wapc-codec"}
+smallvec = "1.10.0"

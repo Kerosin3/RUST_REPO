@@ -1,0 +1,33 @@
+syntax = "proto3";
+package testproto;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/type.proto";
+// имя должно начинаться так же как пакедж но с большой! и дальше также! одинаковое!
+service Testproto {
+    rpc enquire_person (NameRequest) returns (PersonResponse);
+}
+
+message NameRequest {
+	string name = 1;
+}
+
+message PersonResponse {
+//  string name = 1;
+//  int32 id = 2;  // Unique ID number for this person.
+//  string email = 3;
+
+    string confirmation = 1;
+    google.protobuf.Timestamp timestamp = 2;
+    bytes hash = 3;
+}
+//  message PhoneNumber {
+//    string number = 1;
+//  }
+  //repeated PhoneNumber phones = 4; // Vec of phones
+//}
+
+// Our address book file is just one of these.
+//message AddressBook {
+//  repeated Person people = 1;
+//}

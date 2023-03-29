@@ -1,0 +1,1 @@
+cargo run --example wasm3-demo ./wasm_basic.wasm ping "hi111111111111"

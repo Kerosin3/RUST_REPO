@@ -24,4 +24,4 @@ parking_lot = "0.12"
 thiserror = "1.0"
 
 [dev-dependencies]
-wasmtime-provider = { path = "../wasmtime-provider" }
+wasmtime-provider = { path = "../../wasmtime_runner" }

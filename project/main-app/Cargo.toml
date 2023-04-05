@@ -1,0 +1,23 @@
+[package]
+name = "main-app"
+version = "0.1.0"
+edition = "2021"
+authors = [
+  "Alex V <keromvp@gmail.com>",
+]
+#resolver = "2"
+
+[[bin]]
+name = "bin"
+path = "src/main.rs"
+#[package.metadata.workspaces]
+#independent = true
+
+[badges.maintenance]
+status = "actively-developed"
+
+[dependencies]
+redis = {version = "0.23.0", features = ["tokio-comp"]}
+tokio = { version = "1.27.0", features = ["full"] }
+wasm-core= { path= "../wasm-core"}
+#rand = { git = "https://github.com/rust-lang-nursery/rand", branch = "next" }

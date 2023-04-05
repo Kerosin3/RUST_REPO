@@ -1,11 +1,5 @@
-#![allow(unused_imports)]
-use console::{style, Term};
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
-use smallvec::{smallvec, SmallVec};
-use std::fs::File;
-use std::io::Write;
-use std::{io::Read, time::Instant};
 use wapc_codec::messagepack::{deserialize, serialize};
 
 //simple struct to pass to wasm module and calc hash inside
@@ -25,75 +19,42 @@ use wasmtime_runner::WasmtimeEngineProviderBuilder;
 
 pub fn main() -> Result<(), wapc::errors::Error> {
     env_logger::init();
-    println!("{}", style("starting app!").yellow());
-    /* let file = &std::env::args()
-      .nth(1)
-      .expect("WASM file should be passed as the first CLI parameter");
-    let file2 = &std::env::args()
-      .nth(2)
-      .expect("WASM file should be passed as the second CLI parameter");
-    let func = &std::env::args()
-      .nth(3)
-      .expect("waPC guest function to call should be passed as the second CLI parameter");*/
-    let name = &std::env::args().nth(1).expect("pass a name to serde");
-    //--------------------------------
-    let module_bytes1 = std::fs::read("../../WASM/wasm-calc-hash/module1/build/module1_hash.wasm")
+    println!("Starting demo");
+    let name = &std::env::args().nth(1).expect("pass some name to serde");
+    let module_bytes1 = std::fs::read("../WASM/wasm-calc-hash/module1/build/module1_hash.wasm")
         .expect("WASM module 1 could not be read, run example from wasmtime-provider folder"); // read module 1
-    let module_bytes2 = std::fs::read("../../WASM/wasm-calc-hash/module2/build/module2_hash.wasm")
+    let module_bytes2 = std::fs::read("../WASM/wasm-calc-hash/module2/build/module2_hash.wasm")
         .expect("WASM module 2 could not be read, run example from wasmtime-provider folder"); // read module 2
     let func = "serdes_example".to_string();
-    //let module_bytes2 = std::fs::read(file2).expect("WASM could not be read"); // read module 2
-    //from env
     let engine = WasmtimeEngineProviderBuilder::new()
         .module_bytes(&module_bytes1)
         .build()?;
     assert_ne!(module_bytes1, module_bytes2); // test modules binaries not equal
     let host = WapcHost::new(Box::new(engine), Some(Box::new(host_callback)))?;
-    println!(
-        "{} {}",
-        style("Calling guest (wasm) function ").cyan(),
-        style(&func).cyan()
-    );
+    println!("Calling guest (wasm) function: {}", func);
     // supply person struct
     let person = PersonSend {
         first_name: name.clone(),
     };
-    let serbytes: SmallVec<[u8; 1024]> = serialize(&person).unwrap().into(); // serialize
+    let serbytes: Vec<u8> = serialize(&person).unwrap(); // serialize
     let encoded = hex::encode(serbytes.clone()); // examine
     println!("serialized message: {}", encoded);
-    println!(
-        "{} {}",
-        style("calling wasm guest funcion with name").yellow(),
-        name.clone()
-    );
+    println!("calling wasm guest function to process text [{}]", name);
+    println!("---------------CALLING MAIN MODULE------------------");
     let res = host.call(func.as_str(), &serbytes)?;
-    let round_trip: PersonHashedRecv = deserialize(&res).unwrap();
-    println!("{}", style("DESERIALIZED RESULT:").blue());
-    println!("Deserialized : {:?}", round_trip);
-    //-------------------------------
-    println!(
-        "{}",
-        style("---------------REPLACING MODULE------------------").red()
-    );
-    std::mem::drop(module_bytes1); // just in case
+    let recv_struct: PersonHashedRecv = deserialize(&res).unwrap();
+    println!("Deserialized : {:?}", recv_struct);
+    println!("---------------REPLACING MODULE------------------");
     host.replace_module(&module_bytes2).unwrap(); // hotswapping
-                                                  // supply new person just in case
-    let person2 = PersonSend {
-        first_name: name.clone(),
-    };
-    let serbytes2: SmallVec<[u8; 1024]> = serialize(&person2).unwrap().into();
+    let serbytes2: Vec<u8> = serialize(&person).unwrap();
     let encoded2 = hex::encode(serbytes2.clone());
     println!("serialized message: {}", encoded2);
-    println!(
-        "{} {name}",
-        style("calling wasm guest funcion with name").yellow()
-    );
-
+    println!("calling wasm guest function to process text [{}]", name);
+    println!("Calling guest (wasm) function: {}", func);
     let res2 = host.call("serdes_example", &serbytes2)?; //calling
-    let round_trip2: PersonHashedRecv = deserialize(&res2).unwrap();
-    println!("{}", style("DESERIALIZED RESULT:").blue());
-    println!("Deserialized : {:?}", round_trip2);
-
+    let recv_struct2: PersonHashedRecv = deserialize(&res2).unwrap();
+    println!("Deserialized : {:?}", recv_struct2);
+    assert_ne!(recv_struct, recv_struct2);
     Ok(())
 }
 

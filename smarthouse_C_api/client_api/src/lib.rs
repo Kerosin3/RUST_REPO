@@ -11,7 +11,7 @@ use libc::c_char;
 use std::ffi::CStr;
 use std::ffi::CString;
 #[no_mangle]
-pub extern "C" fn enable_termometer(enable: bool, get_info: bool, arg_s: *const c_char) -> CString {
+pub extern "C" fn enable_termometer(enable: bool, get_info: bool, arg_s: *const c_char) -> *mut i8 {
     println!("starting client application");
     let c_str = unsafe {
         assert!(!arg_s.is_null());
@@ -19,7 +19,7 @@ pub extern "C" fn enable_termometer(enable: bool, get_info: bool, arg_s: *const 
     };
     let Ok(string_from_c) = c_str.to_str() else {
         let answer = format!("error reading device name");
-        return CString::new(answer).unwrap()
+        return CString::new(answer).unwrap().into_raw()
     };
     let mut ipc_msg = IpcMessage::new();
     ipc_msg.set_devname(string_from_c); //assign devname
@@ -40,7 +40,7 @@ pub extern "C" fn enable_termometer(enable: bool, get_info: bool, arg_s: *const 
     let stream = TcpStream::connect("127.0.0.1:12345");
     if stream.is_err() {
         let answer = format!("There is no server running");
-        return CString::new(answer).unwrap();
+        return CString::new(answer).unwrap().into_raw();
     }
     let mut stream = stream.unwrap();
     stream.write_all(&msg).expect("failed to send data");
@@ -49,14 +49,14 @@ pub extern "C" fn enable_termometer(enable: bool, get_info: bool, arg_s: *const 
     let ipc_msg_from_server: IpcMessageToClient = bincode::deserialize(&buf).unwrap();
     if let Some(error_serv) = ipc_msg_from_server.errors {
         let answer = format!("error from server {error_serv}");
-        CString::new(answer).unwrap()
+        return CString::new(answer).unwrap().into_raw();
     } else if ipc_msg_from_server.turning.is_some() {
         let answer = format!(
             "device {} is now enabled! [{}]",
             ipc_msg_from_server.devname,
             ipc_msg_from_server.state.unwrap()
         );
-        CString::new(answer).unwrap()
+        return CString::new(answer).unwrap().into_raw();
     } else {
         let answer = format!(
             "Retrieved info from the home server, devname: {}, state: {}, info: {}",
@@ -64,7 +64,7 @@ pub extern "C" fn enable_termometer(enable: bool, get_info: bool, arg_s: *const 
             ipc_msg_from_server.state.unwrap(),
             ipc_msg_from_server.property.unwrap()
         );
-        CString::new(answer).unwrap()
+        return CString::new(answer).unwrap().into_raw();
     }
 }
 

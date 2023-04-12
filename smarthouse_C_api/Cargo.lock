@@ -67,7 +67,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "client_application"
+name = "client_api"
 version = "0.1.0"
 dependencies = [
  "bincode",

@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include <unistd.h>
 
 void test_enable_device();
 void test_disable_device();
@@ -15,7 +15,10 @@ int main(int argc, char *argv[]) {
   printf("--------------------------------\n");
   test_enable_device();
   test_disable_device();
-  test_info_device();
+  while (1) {
+	test_info_device();
+  	sleep(1);
+  }
   return 0;
 }
 

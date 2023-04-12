@@ -13,7 +13,7 @@ pub fn udp_termo_server() {
     let mut rng = rand::thread_rng();
     loop {
         let (_sizes, sender) = socket.recv_from(&mut buf).unwrap();
-        thread::sleep(time::Duration::from_secs(1));
+        thread::sleep(time::Duration::from_millis(100));
         let num_to_send = rng.gen_range(10.0..50.0) as f32;
         //        println!("temp is {}",num_to_send);
         socket

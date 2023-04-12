@@ -61,6 +61,6 @@ fn imitate_socket_power_change(handle: Device_Handler) {
         handle
             .property_change_state(rng.gen_range(1000..5000))
             .unwrap();
-        thread::sleep(time::Duration::from_secs(1));
+        thread::sleep(time::Duration::from_millis(100));
     }
 }

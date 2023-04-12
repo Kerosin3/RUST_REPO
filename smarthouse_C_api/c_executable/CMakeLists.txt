@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.19)
 
-project(rust_to_c LANGUAGES C)
+project(RUSTCAPP LANGUAGES C)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED True)
 set(C_EXTENSIONS FALSE)

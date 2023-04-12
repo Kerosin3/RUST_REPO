@@ -2,7 +2,7 @@
 ## Usage
 1. Launch the server via command ``cargo run -p server_shouse``
 2. Compile C api lib by building `cargo build -p client_api`
-3. Compile C executable in folder ``c_executable`` by creating ``build`` in the ``c_executable`` dir, cd into, then ``cmake ..``, and ``make`` 
+3. Compile C executable in folder ``client_api`` by creating ``build`` in the ``client_api`` dir, cd into, then ``cmake ..``, and ``make`` 
 4. Run ``RUSTCAPP`` to test whether app is working.
 
 ## Notes

@@ -1,0 +1,8 @@
+#project(mainapp LANGUAGES C)
+ADD_EXECUTABLE (${PROJECT_NAME}
+		main.c)
+
+find_library(RUST_LIB rustlibc PATHS ${PROJECT_SOURCE_DIR}/lib)
+
+TARGET_LINK_LIBRARIES(${PROJECT_NAME}
+	${RUST_LIB})
